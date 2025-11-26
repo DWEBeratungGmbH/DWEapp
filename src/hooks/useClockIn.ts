@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { clockinService } from "@/lib/clockin";
-import { ClockInTimeEntry } from "@/types";
+import { ClockInEntry } from "@/types";
 
 export function useClockIn() {
-  const [currentTimeEntries, setCurrentTimeEntries] = useState<ClockInTimeEntry[]>([]);
-  const [activeTimer, setActiveTimer] = useState<ClockInTimeEntry | null>(null);
+  const [currentTimeEntries, setCurrentTimeEntries] = useState<ClockInEntry[]>([]);
+  const [activeTimer, setActiveTimer] = useState<ClockInEntry | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,7 +69,7 @@ export function useClockIn() {
     }
   };
 
-  const createTimeEntry = async (entry: Omit<ClockInTimeEntry, "id">) => {
+  const createTimeEntry = async (entry: Omit<ClockInEntry, "id">) => {
     try {
       setLoading(true);
       setError(null);
@@ -85,7 +85,7 @@ export function useClockIn() {
     }
   };
 
-  const updateTimeEntry = async (id: string, entry: Partial<ClockInTimeEntry>) => {
+  const updateTimeEntry = async (id: string, entry: Partial<ClockInEntry>) => {
     try {
       setLoading(true);
       setError(null);
@@ -116,7 +116,7 @@ export function useClockIn() {
     }
   };
 
-  const syncWithWeClapp = async (timeEntry: ClockInTimeEntry) => {
+  const syncWithWeClapp = async (timeEntry: ClockInEntry) => {
     if (!timeEntry.taskId) {
       throw new Error("Keine Aufgaben-ID für Synchronisierung vorhanden");
     }

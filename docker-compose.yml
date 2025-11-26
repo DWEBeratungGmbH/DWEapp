@@ -2,41 +2,30 @@ version: '3.8'
 
 services:
   weclapp-manager:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: weclapp-manager:latest
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_WECLAPP_API_URL=${NEXT_PUBLIC_WECLAPP_API_URL}
-      - NEXT_PUBLIC_WECLAPP_API_KEY=${NEXT_PUBLIC_WECLAPP_API_KEY}
-      - NEXT_PUBLIC_AZURE_AD_CLIENT_ID=${NEXT_PUBLIC_AZURE_AD_CLIENT_ID}
-      - NEXT_PUBLIC_AZURE_AD_TENANT_ID=${NEXT_PUBLIC_AZURE_AD_TENANT_ID}
-      - NEXT_PUBLIC_REDIRECT_URI=${NEXT_PUBLIC_REDIRECT_URI}
-      - NEXT_PUBLIC_CLOCKIN_API_URL=${NEXT_PUBLIC_CLOCKIN_API_URL}
-      - NEXT_PUBLIC_CLOCKIN_API_KEY=${NEXT_PUBLIC_CLOCKIN_API_KEY}
-      - NEXTAUTH_URL=${NEXTAUTH_URL}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXT_PUBLIC_WECLAPP_API_URL=https://ihr-weclapp.weclapp.com/webapp/api/v1
+      - NEXT_PUBLIC_WECLAPP_API_KEY=IHR_WECLAPP_API_KEY_HIER
+      - NEXT_PUBLIC_AZURE_AD_CLIENT_ID=25e2203c-f668-482f-acdb-e758de9aef23
+      - NEXT_PUBLIC_AZURE_AD_TENANT_ID=16fb7d46-199f-417d-9460-ebb505438d0c
+      - NEXT_PUBLIC_REDIRECT_URI=http://91.98.135.191
+      - NEXT_PUBLIC_CLOCKIN_API_URL=https://api.clockin.io/v1
+      - NEXT_PUBLIC_CLOCKIN_API_KEY=IHR_CLOCKIN_API_KEY_HIER
+      - NEXTAUTH_URL=http://91.98.135.191
+      - NEXTAUTH_SECRET=SuperSecureSecretString12345
     restart: unless-stopped
     networks:
       - app-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
-  # Nginx reverse proxy for SSL termination
   nginx:
     image: nginx:alpine
     ports:
       - "80:80"
-      - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-      - ./ssl:/etc/nginx/ssl
+      - /opt/weclapp-manager/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - weclapp-manager
     restart: unless-stopped
@@ -46,6 +35,3 @@ services:
 networks:
   app-network:
     driver: bridge
-
-volumes:
-  ssl:
