@@ -2,13 +2,13 @@
 
 import { weclappService } from "@/lib/weclapp";
 import { clockinService } from "@/lib/clockin";
-import { ClockInTimeEntry, Task } from "@/types";
+import { ClockInEntry, Task } from "@/types";
 
 export class SyncService {
   /**
    * Syncs time entries from ClockIn to WeClapp tasks
    */
-  static async syncTimeEntriesToWeClapp(timeEntries: ClockInTimeEntry[]) {
+  static async syncTimeEntriesToWeClapp(timeEntries: ClockInEntry[]) {
     const results = [];
 
     for (const entry of timeEntries) {
