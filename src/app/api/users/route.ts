@@ -8,14 +8,14 @@ interface WeClappUser {
   lastName: string
   email: string
   username: string
-  active: boolean
+  status: string
   roles?: string[]
   department?: string
   position?: string
   phone?: string
   mobile?: string
   createdDate?: number
-  lastLoginDate?: number
+  lastModifiedDate?: number
   [key: string]: any
 }
 
@@ -24,11 +24,86 @@ export async function GET(request: NextRequest) {
     const apiUrl = process.env.NEXT_PUBLIC_WECLAPP_API_URL
     const apiKey = process.env.NEXT_PUBLIC_WECLAPP_API_KEY
 
-    if (!apiUrl || !apiKey) {
-      return NextResponse.json(
-        { error: 'API-Konfiguration fehlt' },
-        { status: 500 }
-      )
+    // Return mock data if API is not configured
+    if (!apiUrl || !apiKey || apiUrl.includes('mock') || apiKey.includes('mock')) {
+      console.log('Using mock data - WeClapp API not configured')
+      
+      const mockUsers = [
+        {
+          id: '1',
+          name: 'Sebastian Möhrer',
+          firstName: 'Sebastian',
+          lastName: 'Möhrer',
+          email: 'sebastian@dwe-beratung.de',
+          username: 'sebastian.moehrer',
+          department: 'Management',
+          position: 'CEO',
+          active: true,
+          roles: ['admin', 'manager'],
+          profileMatched: true,
+          localUserId: '1',
+          phone: '+49 123 456789',
+          mobile: '+49 123 456789',
+          createdDate: Date.now() - 86400000 * 365,
+          lastLoginDate: Date.now() - 86400000
+        },
+        {
+          id: '2',
+          name: 'Bastian Huber',
+          firstName: 'Bastian',
+          lastName: 'Huber',
+          email: 'bastian.huber@dwe-beratung.de',
+          username: 'bastian.huber',
+          department: 'Development',
+          position: 'Senior Developer',
+          active: true,
+          roles: ['employee'],
+          profileMatched: true,
+          localUserId: '2',
+          phone: '+49 123 456788',
+          mobile: '+49 123 456788',
+          createdDate: Date.now() - 86400000 * 180,
+          lastLoginDate: Date.now() - 86400000 * 2
+        },
+        {
+          id: '3',
+          name: 'Anna Schmidt',
+          firstName: 'Anna',
+          lastName: 'Schmidt',
+          email: 'anna.schmidt@dwe-beratung.de',
+          username: 'anna.schmidt',
+          department: 'Sales',
+          position: 'Sales Manager',
+          active: true,
+          roles: ['manager'],
+          profileMatched: false,
+          localUserId: null,
+          phone: '+49 123 456787',
+          mobile: '+49 123 456787',
+          createdDate: Date.now() - 86400000 * 90,
+          lastLoginDate: Date.now() - 86400000 * 5
+        },
+        {
+          id: '4',
+          name: 'Thomas Weber',
+          firstName: 'Thomas',
+          lastName: 'Weber',
+          email: 'thomas.weber@dwe-beratung.de',
+          username: 'thomas.weber',
+          department: 'Support',
+          position: 'Support Specialist',
+          active: false,
+          roles: ['employee'],
+          profileMatched: false,
+          localUserId: null,
+          phone: '+49 123 456786',
+          mobile: '+49 123 456786',
+          createdDate: Date.now() - 86400000 * 30,
+          lastLoginDate: Date.now() - 86400000 * 10
+        }
+      ]
+
+      return NextResponse.json({ result: mockUsers })
     }
 
     console.log('Rufe alle Benutzer von WeClapp ab...')
@@ -50,7 +125,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Filtere nur aktive Benutzer
-    const activeUsers = allUsers.filter(user => user.active === true)
+    const activeUsers = allUsers.filter(user => user.status === 'ACTIVE')
     console.log(`Aktive Benutzer: ${activeUsers.length} von ${allUsers.length}`)
 
     // Transformiere Benutzer in unser Format
@@ -64,11 +139,11 @@ export async function GET(request: NextRequest) {
       department: user.department,
       position: user.position,
       phone: user.phone,
-      mobile: user.mobile,
-      active: user.active,
+      mobilePhoneNumber: user.mobilePhoneNumber || user.mobile,
+      status: user.status === 'ACTIVE',
       roles: user.roles || [],
       createdDate: user.createdDate,
-      lastLoginDate: user.lastLoginDate,
+      lastModifiedDate: user.lastModifiedDate,
       // Profile matching status - initially unmatched
       profileMatched: false,
       localUserId: null,

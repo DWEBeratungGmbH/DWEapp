@@ -27,11 +27,58 @@ export async function GET(request: NextRequest) {
     const WECLAPP_API_URL = process.env.NEXT_PUBLIC_WECLAPP_API_URL
     const WECLAPP_API_KEY = process.env.NEXT_PUBLIC_WECLAPP_API_KEY
     
-    if (!WECLAPP_API_URL || !WECLAPP_API_KEY) {
-      return NextResponse.json(
-        { error: 'WeClapp API configuration missing' },
-        { status: 500 }
-      )
+    // Return mock data if API is not configured
+    if (!WECLAPP_API_URL || !WECLAPP_API_KEY || WECLAPP_API_URL.includes('mock') || WECLAPP_API_KEY.includes('mock')) {
+      console.log('Using mock data - WeClapp API not configured')
+      
+      const mockWeClappUsers = [
+        {
+          id: 'wc-1',
+          firstName: 'Sebastian',
+          lastName: 'Möhrer',
+          email: 'sebastian@dwe-beratung.de',
+          username: 'sebastian.moehrer',
+          active: true,
+          roles: ['admin'],
+          department: 'Management',
+          position: 'CEO'
+        },
+        {
+          id: 'wc-2',
+          firstName: 'Bastian',
+          lastName: 'Huber',
+          email: 'bastian.huber@dwe-beratung.de',
+          username: 'bastian.huber',
+          active: true,
+          roles: ['employee'],
+          department: 'Development',
+          position: 'Senior Developer'
+        },
+        {
+          id: 'wc-3',
+          firstName: 'Anna',
+          lastName: 'Schmidt',
+          email: 'anna.schmidt@dwe-beratung.de',
+          username: 'anna.schmidt',
+          active: true,
+          roles: ['manager'],
+          department: 'Sales',
+          position: 'Sales Manager'
+        }
+      ]
+      
+      // User Matching durchführen
+      const enrichedUsers = enrichAppUsers(mockAppUsers, mockWeClappUsers)
+      
+      console.log(`User Matching (Mock): ${enrichedUsers.filter(u => u.weClappUserId).length} von ${enrichedUsers.length} User gematched`)
+      
+      return NextResponse.json({
+        success: true,
+        users: enrichedUsers,
+        total: enrichedUsers.length,
+        matched: enrichedUsers.filter(u => u.weClappUserId).length,
+        weClappUsers: mockWeClappUsers.length
+      })
     }
     
     const weClappResponse = await fetch(`${WECLAPP_API_URL}/user`, {

@@ -25,6 +25,7 @@ export function Sidebar({ userRole = 'employee' }: { userRole?: string }) {
       { name: 'Meine Aufgaben', href: '/tasks?view=my', icon: CheckSquare, roles: ['admin', 'manager', 'project_manager', 'employee'] },
       { name: 'Alle Aufgaben', href: '/tasks?view=all', icon: CheckSquare, roles: ['admin', 'manager', 'project_manager'] },
       { name: 'Aufträge', href: '/orders', icon: ClipboardList, roles: ['admin', 'manager', 'project_manager', 'employee'] },
+      { name: 'Benutzer', href: '/users', icon: UserCircle, roles: ['admin', 'manager'] },
       { name: 'Zeit-Buchung', href: '/time', icon: Clock, roles: ['admin', 'manager', 'project_manager', 'employee'] },
       { name: 'Team', href: '/team', icon: Users, roles: ['admin', 'manager'] },
       { name: 'Kunden', href: '/customers', icon: Users, roles: ['admin', 'manager'] },

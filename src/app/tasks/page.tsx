@@ -1,22 +1,44 @@
 "use client"
 
-import React, { useEffect, useState } from 'react'
-import { ClipboardList, Plus, Search, Filter, Calendar, RefreshCw, CheckCircle, Clock, AlertCircle, ExternalLink, X, User } from 'lucide-react'
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import { 
+  ClipboardList, 
+  Plus, 
+  Search, 
+  Filter, 
+  Calendar, 
+  RefreshCw, 
+  CheckCircle, 
+  Clock, 
+  AlertCircle, 
+  ExternalLink, 
+  X, 
+  User,
+  ArrowUpRight,
+  MoreHorizontal,
+  ChevronDown
+} from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import MultiSelectDropdown from '@/components/MultiSelectDropdown'
 
 interface Task {
   id: string
-  name: string
+  title: string
+  description?: string
   status: string
   priority: string
-  dueDate?: number
+  dueDate?: string
   assignedUser?: string
   assignedUserId?: string
-  description?: string
+  assignedUserName?: string
   orderId?: string
   orderNumber?: string
-  createdDate?: number
+  createdDate?: string
   estimatedHours?: number
   actualHours?: number
   orderInfo?: {
@@ -32,8 +54,26 @@ interface Task {
   }
 }
 
+interface User {
+  id: string
+  name: string
+  firstName: string
+  lastName: string
+  email: string
+  username: string
+  department?: string
+  position?: string
+  phone?: string
+  mobile?: string
+  active: boolean
+  roles: string[]
+  createdDate?: number
+  lastLoginDate?: number
+}
+
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [userRole, setUserRole] = useState<string>('employee')
@@ -46,51 +86,187 @@ export default function TasksPage() {
   const [assignedFilter, setAssignedFilter] = useState<string>('all')
   const [dateFilter, setDateFilter] = useState<string>('all')
   const [showFilters, setShowFilters] = useState(false)
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([])
+  
+  // Column header filter states
+  const [columnFilters, setColumnFilters] = useState({
+    status: 'all',
+    priority: 'all',
+    assigned: 'all',
+    dueDate: 'all'
+  })
+  const [activeColumnFilter, setActiveColumnFilter] = useState<string | null>(null)
+  const tableRef = useRef<HTMLTableElement>(null)
   
   const searchParams = useSearchParams()
   const view = searchParams.get('view') || 'all'
 
+  // Close dropdown when clicking outside
   useEffect(() => {
-    const fetchTasks = async () => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tableRef.current && !tableRef.current.contains(event.target as Node)) {
+        setActiveColumnFilter(null)
+      }
+    }
+
+    if (activeColumnFilter) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [activeColumnFilter])
+
+  useEffect(() => {
+    const fetchData = async () => {
       try {
         setLoading(true)
         
-        // API Call mit Rollen-Filter und View
-        let url = `/api/tasks?userId=${userId}&userRole=${userRole}`
-        if (view === 'my') {
-          url += `&assignedTo=${userId}`
+        // Parallel API Calls für Tasks und Users
+        const [tasksResponse, usersResponse] = await Promise.all([
+          fetch(`/api/tasks?userId=${userId}&userRole=${userRole}${view === 'my' ? `&assignedTo=${userId}` : ''}`),
+          fetch('/api/users')
+        ])
+
+        if (tasksResponse.ok && usersResponse.ok) {
+          const tasksData = await tasksResponse.json()
+          const usersData = await usersResponse.json()
+          
+          const tasks = tasksData.tasks || []
+          const users = usersData.result || []
+          
+          // Tasks mit User-Namen anreichern
+          const enrichedTasks = tasks.map((task: Task) => {
+            const assignedUser = users.find((user: User) => 
+              user.id === task.assignedUserId || user.id === task.assignedUser
+            )
+            return {
+              ...task,
+              assignedUserName: assignedUser ? assignedUser.name : task.assignedUserName || 'Nicht zugewiesen'
+            }
+          })
+          
+          setTasks(enrichedTasks)
+          setUsers(users)
+          setError(null)
         }
-        
-        const response = await fetch(url)
-        
-        if (!response.ok) {
-          throw new Error('Aufgaben konnten nicht geladen werden')
-        }
-        
-        const data = await response.json()
-        setTasks(data.tasks || [])
-        setError(null)
       } catch (err: any) {
-        console.error('Fehler beim Abrufen der Tasks:', err)
-        setError(`Konnte die Tasks nicht laden: ${err.message}`)
+        console.error('Fehler beim Abrufen der Daten:', err)
+        setError(`Konnte die Daten nicht laden: ${err.message}`)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchTasks()
+    fetchData()
   }, [userId, userRole, view])
+
+  // Filter für Auftrag und Benutzer
+  const handleOrderFilter = (orderId: string) => {
+    if (orderId === 'all') {
+      // Alle Aufgaben neu laden
+      fetchTasksWithFilters(undefined, selectedUsers.length > 0 ? selectedUsers : undefined)
+    } else {
+      // Aufgaben für spezifischen Auftrag laden
+      fetchTasksWithFilters(orderId, selectedUsers.length > 0 ? selectedUsers : undefined)
+    }
+  }
+
+  const handleUserSelectionChange = (selectedUserIds: string[]) => {
+    setSelectedUsers(selectedUserIds)
+    // Live-Update der Aufgaben basierend auf der Auswahl
+    if (selectedUserIds.length > 0) {
+      fetchTasksWithFilters(undefined, selectedUserIds)
+    } else {
+      fetchTasksWithFilters()
+    }
+  }
+
+  const fetchTasksWithFilters = async (orderId?: string, assignedUserIds?: string[]) => {
+    try {
+      setLoading(true)
+      
+      let url = `/api/tasks?userId=${userId}&userRole=${userRole}`
+      if (orderId) {
+        url += `&orderId=${orderId}`
+      }
+      if (assignedUserIds && assignedUserIds.length > 0) {
+        // Mehrere Benutzer als separate Parameter hinzufügen
+        assignedUserIds.forEach(userId => {
+          url += `&assignedTo=${userId}`
+        })
+      }
+      
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        throw new Error('Aufgaben konnten nicht geladen werden')
+      }
+      
+      const data = await response.json()
+      setTasks(data.tasks || [])
+      setError(null)
+    } catch (err: any) {
+      console.error('Fehler beim Abrufen der Tasks:', err)
+      setError(`Konnte die Tasks nicht laden: ${err.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Get unique values for column filters
+  const uniqueStatuses = useMemo(() => {
+    return Array.from(new Set(tasks.map(task => task.status).filter(Boolean)))
+  }, [tasks])
+  
+  const uniquePriorities = useMemo(() => {
+    return Array.from(new Set(tasks.map(task => task.priority).filter(Boolean)))
+  }, [tasks])
+  
+  const uniqueAssignedUsers = useMemo(() => {
+    return Array.from(new Set(tasks.map(task => task.assignedUserName).filter(Boolean)))
+  }, [tasks])
+  
+  const uniqueDueDates = useMemo(() => {
+    const dates = tasks.map(task => {
+      if (!task.dueDate) return null
+      const date = new Date(task.dueDate)
+      return date.toLocaleDateString('de-DE')
+    }).filter(Boolean)
+    return Array.from(new Set(dates))
+  }, [tasks])
 
   // Filter Logik
   const filteredTasks = tasks.filter(task => {
     // Suchfilter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase()
-      if (!task.name?.toLowerCase().includes(searchLower) &&
+      if (!task.title?.toLowerCase().includes(searchLower) &&
           !task.description?.toLowerCase().includes(searchLower) &&
-          !task.assignedUser?.toLowerCase().includes(searchLower)) {
+          !task.assignedUserName?.toLowerCase().includes(searchLower)) {
         return false
       }
+    }
+
+    // Column header filters
+    if (columnFilters.status !== 'all' && task.status !== columnFilters.status) {
+      return false
+    }
+    
+    if (columnFilters.priority !== 'all' && task.priority !== columnFilters.priority) {
+      return false
+    }
+    
+    if (columnFilters.assigned !== 'all') {
+      if (columnFilters.assigned === 'unassigned' && task.assignedUserName && task.assignedUserName !== 'Nicht zugewiesen') return false
+      if (columnFilters.assigned === 'assigned' && (!task.assignedUserName || task.assignedUserName === 'Nicht zugewiesen')) return false
+      if (columnFilters.assigned !== 'unassigned' && columnFilters.assigned !== 'assigned' && task.assignedUserName !== columnFilters.assigned) {
+        return false
+      }
+    }
+    
+    if (columnFilters.dueDate !== 'all') {
+      if (!task.dueDate) return false
+      const taskDate = new Date(task.dueDate).toLocaleDateString('de-DE')
+      if (taskDate !== columnFilters.dueDate) return false
     }
 
     // Statusfilter
@@ -105,9 +281,9 @@ export default function TasksPage() {
 
     // Zuständigkeitsfilter
     if (assignedFilter !== 'all') {
-      if (assignedFilter === 'unassigned' && task.assignedUser) return false
-      if (assignedFilter === 'assigned' && !task.assignedUser) return false
-      if (assignedFilter !== 'unassigned' && assignedFilter !== 'assigned' && task.assignedUser !== assignedFilter) {
+      if (assignedFilter === 'unassigned' && task.assignedUserName && task.assignedUserName !== 'Nicht zugewiesen') return false
+      if (assignedFilter === 'assigned' && (!task.assignedUserName || task.assignedUserName === 'Nicht zugewiesen')) return false
+      if (assignedFilter !== 'unassigned' && assignedFilter !== 'assigned' && task.assignedUserName !== assignedFilter) {
         return false
       }
     }
@@ -185,7 +361,7 @@ export default function TasksPage() {
     }
   }
 
-  const isOverdue = (dueDate?: number) => {
+  const isOverdue = (dueDate?: string | number) => {
     if (!dueDate) return false
     return new Date(dueDate) < new Date()
   }
@@ -196,6 +372,12 @@ export default function TasksPage() {
     setPriorityFilter('all')
     setAssignedFilter('all')
     setDateFilter('all')
+    setColumnFilters({
+      status: 'all',
+      priority: 'all',
+      assigned: 'all',
+      dueDate: 'all'
+    })
   }
 
   const activeFiltersCount = [
@@ -203,7 +385,11 @@ export default function TasksPage() {
     statusFilter !== 'all' ? 'status' : null,
     priorityFilter !== 'all' ? 'priority' : null,
     assignedFilter !== 'all' ? 'assigned' : null,
-    dateFilter !== 'all' ? 'date' : null
+    dateFilter !== 'all' ? 'date' : null,
+    columnFilters.status !== 'all' ? 'columnStatus' : null,
+    columnFilters.priority !== 'all' ? 'columnPriority' : null,
+    columnFilters.assigned !== 'all' ? 'columnAssigned' : null,
+    columnFilters.dueDate !== 'all' ? 'columnDueDate' : null
   ].filter(Boolean).length
 
   // Get unique assigned users for filter
@@ -281,25 +467,25 @@ export default function TasksPage() {
 
         <div className="flex items-center space-x-4">
           <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <input
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
               type="search"
               placeholder="Aufgaben suchen..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="input pl-8"
+              className="pl-10"
             />
           </div>
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4 pt-4 border-t">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4 pt-4 border-t">
             <div>
               <label className="block text-sm font-medium mb-2">Status</label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="input"
+                className="w-full h-10 px-3 py-2 text-sm border border-input bg-background rounded-md"
               >
                 <option value="all">Alle Status</option>
                 <option value="OPEN">Offen</option>
@@ -313,7 +499,7 @@ export default function TasksPage() {
               <select
                 value={priorityFilter}
                 onChange={(e) => setPriorityFilter(e.target.value)}
-                className="input"
+                className="w-full h-10 px-3 py-2 text-sm border border-input bg-background rounded-md"
               >
                 <option value="all">Alle Prioritäten</option>
                 <option value="HIGH">Hoch</option>
@@ -322,26 +508,34 @@ export default function TasksPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Zuständig</label>
+              <label className="block text-sm font-medium mb-2">Auftrag</label>
               <select
-                value={assignedFilter}
-                onChange={(e) => setAssignedFilter(e.target.value)}
-                className="input"
+                onChange={(e) => handleOrderFilter(e.target.value)}
+                className="w-full h-10 px-3 py-2 text-sm border border-input bg-background rounded-md"
               >
-                <option value="all">Alle</option>
-                <option value="assigned">Zugewiesen</option>
-                <option value="unassigned">Nicht zugewiesen</option>
-                {assignedUsers.map(user => (
-                  <option key={user} value={user}>{user}</option>
+                <option value="all">Alle Aufträge</option>
+                {Array.from(new Set(tasks.map(t => t.orderNumber).filter(Boolean))).map(orderNumber => (
+                  <option key={orderNumber} value={orderNumber}>
+                    #{orderNumber}
+                  </option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Benutzer</label>
+              <MultiSelectDropdown
+                selectedUsers={selectedUsers}
+                onSelectionChange={handleUserSelectionChange}
+                placeholder="Benutzer auswählen..."
+                className="w-full"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium mb-2">Zeitraum</label>
               <select
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="input"
+                className="w-full h-10 px-3 py-2 text-sm border border-input bg-background rounded-md"
               >
                 <option value="all">Alle Zeitpunkte</option>
                 <option value="today">Heute</option>
@@ -356,50 +550,66 @@ export default function TasksPage() {
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-card rounded-lg border p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Offen</p>
-              <p className="text-2xl font-bold text-yellow-600">
-                {tasks.filter(t => t.status === 'OPEN').length}
-              </p>
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Offen</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {tasks.filter(t => t.status === 'OPEN').length}
+                </p>
+              </div>
+              <div className="p-2 bg-yellow-100 rounded-full">
+                <Clock className="h-5 w-5 text-yellow-600" />
+              </div>
             </div>
-            <Clock className="h-8 w-8 text-yellow-600" />
-          </div>
-        </div>
-        <div className="bg-card rounded-lg border p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">In Arbeit</p>
-              <p className="text-2xl font-bold text-blue-600">
-                {tasks.filter(t => t.status === 'IN_PROGRESS').length}
-              </p>
+          </CardContent>
+        </Card>
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">In Arbeit</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {tasks.filter(t => t.status === 'IN_PROGRESS').length}
+                </p>
+              </div>
+              <div className="p-2 bg-blue-100 rounded-full">
+                <Clock className="h-5 w-5 text-blue-600" />
+              </div>
             </div>
-            <Clock className="h-8 w-8 text-blue-600" />
-          </div>
-        </div>
-        <div className="bg-card rounded-lg border p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Erledigt</p>
-              <p className="text-2xl font-bold text-green-600">
-                {tasks.filter(t => t.status === 'COMPLETED').length}
-              </p>
+          </CardContent>
+        </Card>
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Erledigt</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {tasks.filter(t => t.status === 'COMPLETED').length}
+                </p>
+              </div>
+              <div className="p-2 bg-green-100 rounded-full">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              </div>
             </div>
-            <CheckCircle className="h-8 w-8 text-green-600" />
-          </div>
-        </div>
-        <div className="bg-card rounded-lg border p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Überfällig</p>
-              <p className="text-2xl font-bold text-red-600">
-                {tasks.filter(t => t.dueDate && isOverdue(t.dueDate)).length}
-              </p>
+          </CardContent>
+        </Card>
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Überfällig</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {tasks.filter(t => t.dueDate && isOverdue(t.dueDate)).length}
+                </p>
+              </div>
+              <div className="p-2 bg-red-100 rounded-full">
+                <AlertCircle className="h-5 w-5 text-red-600" />
+              </div>
             </div>
-            <AlertCircle className="h-8 w-8 text-red-600" />
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       {loading && (
@@ -416,15 +626,137 @@ export default function TasksPage() {
       )}
 
       {!loading && !error && (
-        <div className="rounded-md border">
+        <div className="rounded-md border" ref={tableRef}>
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="h-12 px-4 text-left align-middle font-medium w-24">Status</th>
+                <th className="h-12 px-4 text-left align-middle font-medium w-24">
+                  <div className="flex items-center space-x-2">
+                    <span>Status</span>
+                    <div className="relative">
+                      <button
+                        onClick={() => setActiveColumnFilter(activeColumnFilter === 'status' ? null : 'status')}
+                        className="p-1 hover:bg-muted rounded"
+                        title="Status filtern"
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                      {activeColumnFilter === 'status' && (
+                        <div className="absolute top-full left-0 mt-1 bg-background border rounded-md shadow-lg z-10 min-w-40">
+                          <select
+                            value={columnFilters.status}
+                            onChange={(e) => setColumnFilters(prev => ({ ...prev, status: e.target.value }))}
+                            className="w-full p-2 border-0 bg-transparent"
+                            autoFocus
+                          >
+                            <option value="all">Alle Status</option>
+                            {uniqueStatuses.map(status => (
+                              <option key={status} value={status}>
+                                {getTaskStatusText(status)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </th>
                 <th className="h-12 px-4 text-left align-middle font-medium">Aufgabe</th>
-                <th className="h-12 px-4 text-left align-middle font-medium w-28">Priorität</th>
-                <th className="h-12 px-4 text-left align-middle font-medium w-32">Fälligkeitsdatum</th>
-                <th className="h-12 px-4 text-left align-middle font-medium w-32">Zuständig</th>
+                <th className="h-12 px-4 text-left align-middle font-medium w-28">
+                  <div className="flex items-center space-x-2">
+                    <span>Priorität</span>
+                    <div className="relative">
+                      <button
+                        onClick={() => setActiveColumnFilter(activeColumnFilter === 'priority' ? null : 'priority')}
+                        className="p-1 hover:bg-muted rounded"
+                        title="Priorität filtern"
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                      {activeColumnFilter === 'priority' && (
+                        <div className="absolute top-full left-0 mt-1 bg-background border rounded-md shadow-lg z-10 min-w-40">
+                          <select
+                            value={columnFilters.priority}
+                            onChange={(e) => setColumnFilters(prev => ({ ...prev, priority: e.target.value }))}
+                            className="w-full p-2 border-0 bg-transparent"
+                            autoFocus
+                          >
+                            <option value="all">Alle Prioritäten</option>
+                            {uniquePriorities.map(priority => (
+                              <option key={priority} value={priority}>
+                                {getPriorityText(priority)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </th>
+                <th className="h-12 px-4 text-left align-middle font-medium w-32">
+                  <div className="flex items-center space-x-2">
+                    <span>Fälligkeit</span>
+                    <div className="relative">
+                      <button
+                        onClick={() => setActiveColumnFilter(activeColumnFilter === 'dueDate' ? null : 'dueDate')}
+                        className="p-1 hover:bg-muted rounded"
+                        title="Fälligkeit filtern"
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                      {activeColumnFilter === 'dueDate' && (
+                        <div className="absolute top-full left-0 mt-1 bg-background border rounded-md shadow-lg z-10 min-w-40">
+                          <select
+                            value={columnFilters.dueDate}
+                            onChange={(e) => setColumnFilters(prev => ({ ...prev, dueDate: e.target.value }))}
+                            className="w-full p-2 border-0 bg-transparent"
+                            autoFocus
+                          >
+                            <option value="all">Alle Daten</option>
+                            {uniqueDueDates.map(date => (
+                              <option key={date} value={date}>
+                                {date}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </th>
+                <th className="h-12 px-4 text-left align-middle font-medium w-32">
+                  <div className="flex items-center space-x-2">
+                    <span>Zuständig</span>
+                    <div className="relative">
+                      <button
+                        onClick={() => setActiveColumnFilter(activeColumnFilter === 'assigned' ? null : 'assigned')}
+                        className="p-1 hover:bg-muted rounded"
+                        title="Zuständigkeit filtern"
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                      {activeColumnFilter === 'assigned' && (
+                        <div className="absolute top-full left-0 mt-1 bg-background border rounded-md shadow-lg z-10 min-w-40">
+                          <select
+                            value={columnFilters.assigned}
+                            onChange={(e) => setColumnFilters(prev => ({ ...prev, assigned: e.target.value }))}
+                            className="w-full p-2 border-0 bg-transparent"
+                            autoFocus
+                          >
+                            <option value="all">Alle Benutzer</option>
+                            <option value="assigned">Zugewiesen</option>
+                            <option value="unassigned">Nicht zugewiesen</option>
+                            {uniqueAssignedUsers.map(user => (
+                              <option key={user} value={user}>
+                                {user}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </th>
                 <th className="h-12 px-4 text-left align-middle font-medium w-64">Auftrag</th>
                 <th className="h-12 px-4 text-left align-middle font-medium w-20"></th>
               </tr>
@@ -449,7 +781,7 @@ export default function TasksPage() {
                     </td>
                     <td className="p-4 align-middle">
                       <div>
-                        <div className="font-medium">{task.name || `Task ${task.id}`}</div>
+                        <div className="font-medium">{task.title || `Task ${task.id}`}</div>
                         {task.description && (
                           <div className="text-sm text-muted-foreground line-clamp-2">{task.description}</div>
                         )}
@@ -476,7 +808,7 @@ export default function TasksPage() {
                       <div className="flex items-center">
                         <User className="mr-2 h-4 w-4 text-muted-foreground" />
                         <div className="text-sm">
-                          {task.assignedUser || (
+                          {task.assignedUserName || (
                             <span className="text-muted-foreground">Nicht zugewiesen</span>
                           )}
                         </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo, useRef } from 'react'
 import { ClipboardList, Plus, Search, Filter, Calendar, RefreshCw, Euro, User, FileText, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronUp, X } from 'lucide-react'
 import Link from 'next/link'
 
@@ -57,12 +57,35 @@ export default function OrdersPage() {
   const [loadingTasks, setLoadingTasks] = useState<Set<string>>(new Set())
   const [userRole, setUserRole] = useState<string>('employee')
   const [userId, setUserId] = useState<string>('')
-  
+
   // Filter States
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [dateFilter, setDateFilter] = useState<string>('all')
   const [showFilters, setShowFilters] = useState(false)
+
+  // Column header filter states
+  const [columnFilters, setColumnFilters] = useState({
+    status: 'all',
+    customer: 'all',
+    date: 'all'
+  })
+  const [activeColumnFilter, setActiveColumnFilter] = useState<string | null>(null)
+  const tableRef = useRef<HTMLTableElement>(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tableRef.current && !tableRef.current.contains(event.target as Node)) {
+        setActiveColumnFilter(null)
+      }
+    }
+
+    if (activeColumnFilter) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [activeColumnFilter])
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -70,11 +93,11 @@ export default function OrdersPage() {
         setLoading(true)
         // API Call mit Rollen-Filter
         const response = await fetch(`/api/orders?userId=${userId}&userRole=${userRole}`)
-        
+
         if (!response.ok) {
           throw new Error('Aufträge konnten nicht geladen werden')
         }
-        
+
         const data = await response.json()
         setOrders(data.orders || [])
         setError(null)
@@ -95,14 +118,14 @@ export default function OrdersPage() {
     }
 
     setLoadingTasks(prev => new Set(prev).add(orderId))
-    
+
     try {
       const response = await fetch(`/api/orders/${orderId}/tasks`)
-      
+
       if (!response.ok) {
         throw new Error('Tasks konnten nicht geladen werden')
       }
-      
+
       const data = await response.json()
       setTasksData(prev => ({
         ...prev,
@@ -119,18 +142,61 @@ export default function OrdersPage() {
     }
   }
 
+  // Get unique values for column filters
+  const uniqueStatuses = useMemo(() => {
+    return Array.from(new Set(orders.map(order => order.status).filter(Boolean)))
+  }, [orders])
+
+  const uniqueCustomers = useMemo(() => {
+    return Array.from(new Set(orders.map(order => {
+      const name = order.invoiceAddress?.firstName && order.invoiceAddress?.lastName
+        ? `${order.invoiceAddress.firstName} ${order.invoiceAddress.lastName}`
+        : `Kunde ${order.customerNumber}`
+      return name
+    }).filter(Boolean)))
+  }, [orders])
+
+  const uniqueDates = useMemo(() => {
+    const dates = orders.map(order => {
+      const date = new Date(order.orderDate)
+      return date.toLocaleDateString('de-DE')
+    }).filter(Boolean)
+    return Array.from(new Set(dates))
+  }, [orders])
+
   // Filter Logik
   const filteredOrders = orders.filter(order => {
+    // Column header filters
+    if (columnFilters.status !== 'all' && order.status !== columnFilters.status) {
+      return false
+    }
+
+    if (columnFilters.customer !== 'all') {
+      const customerName = order.invoiceAddress?.firstName && order.invoiceAddress?.lastName
+        ? `${order.invoiceAddress.firstName} ${order.invoiceAddress.lastName}`
+        : `Kunde ${order.customerNumber}`
+      if (customerName !== columnFilters.customer) {
+        return false
+      }
+    }
+
+    if (columnFilters.date !== 'all') {
+      const orderDate = new Date(order.orderDate).toLocaleDateString('de-DE')
+      if (orderDate !== columnFilters.date) {
+        return false
+      }
+    }
+
     // Suchfilter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase()
-      const customerName = order.invoiceAddress?.firstName && order.invoiceAddress?.lastName 
+      const customerName = order.invoiceAddress?.firstName && order.invoiceAddress?.lastName
         ? `${order.invoiceAddress.firstName} ${order.invoiceAddress.lastName}`.toLowerCase()
         : `kunde ${order.customerNumber}`.toLowerCase()
-      
+
       if (!order.orderNumber.toLowerCase().includes(searchLower) &&
-          !customerName.includes(searchLower) &&
-          !order.customerNumber.includes(searchLower)) {
+        !customerName.includes(searchLower) &&
+        !order.customerNumber.includes(searchLower)) {
         return false
       }
     }
@@ -144,7 +210,7 @@ export default function OrdersPage() {
     if (dateFilter !== 'all') {
       const orderDate = new Date(order.orderDate)
       const today = new Date()
-      
+
       switch (dateFilter) {
         case 'today':
           if (orderDate.toDateString() !== today.toDateString()) return false
@@ -165,14 +231,14 @@ export default function OrdersPage() {
 
   const toggleOrderExpansion = (orderId: string) => {
     const newExpanded = new Set(expandedOrders)
-    
+
     if (newExpanded.has(orderId)) {
       newExpanded.delete(orderId)
     } else {
       newExpanded.add(orderId)
       fetchTasksForOrder(orderId)
     }
-    
+
     setExpandedOrders(newExpanded)
   }
 
@@ -213,12 +279,20 @@ export default function OrdersPage() {
     setSearchTerm('')
     setStatusFilter('all')
     setDateFilter('all')
+    setColumnFilters({
+      status: 'all',
+      customer: 'all',
+      date: 'all'
+    })
   }
 
   const activeFiltersCount = [
     searchTerm ? 'search' : null,
     statusFilter !== 'all' ? 'status' : null,
-    dateFilter !== 'all' ? 'date' : null
+    dateFilter !== 'all' ? 'date' : null,
+    columnFilters.status !== 'all' ? 'columnStatus' : null,
+    columnFilters.customer !== 'all' ? 'columnCustomer' : null,
+    columnFilters.date !== 'all' ? 'columnDate' : null
   ].filter(Boolean).length
 
   return (
@@ -324,14 +398,104 @@ export default function OrdersPage() {
       )}
 
       {!loading && !error && (
-        <div className="rounded-md border">
+        <div className="rounded-md border" ref={tableRef}>
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="h-12 px-4 text-left align-middle font-medium">Auftrags-Nr.</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Kunde</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Status</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Auftragsdatum</th>
+                <th className="h-12 px-4 text-left align-middle font-medium">
+                  <div className="flex items-center space-x-2">
+                    <span>Kunde</span>
+                    <div className="relative">
+                      <button
+                        onClick={() => setActiveColumnFilter(activeColumnFilter === 'customer' ? null : 'customer')}
+                        className="p-1 hover:bg-muted rounded"
+                        title="Kunden filtern"
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                      {activeColumnFilter === 'customer' && (
+                        <div className="absolute top-full left-0 mt-1 bg-background border rounded-md shadow-lg z-10 min-w-48">
+                          <select
+                            value={columnFilters.customer}
+                            onChange={(e) => setColumnFilters(prev => ({ ...prev, customer: e.target.value }))}
+                            className="w-full p-2 border-0 bg-transparent"
+                            autoFocus
+                          >
+                            <option value="all">Alle Kunden</option>
+                            {uniqueCustomers.map(customer => (
+                              <option key={customer} value={customer}>
+                                {customer}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </th>
+                <th className="h-12 px-4 text-left align-middle font-medium">
+                  <div className="flex items-center space-x-2">
+                    <span>Status</span>
+                    <div className="relative">
+                      <button
+                        onClick={() => setActiveColumnFilter(activeColumnFilter === 'status' ? null : 'status')}
+                        className="p-1 hover:bg-muted rounded"
+                        title="Status filtern"
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                      {activeColumnFilter === 'status' && (
+                        <div className="absolute top-full left-0 mt-1 bg-background border rounded-md shadow-lg z-10 min-w-48">
+                          <select
+                            value={columnFilters.status}
+                            onChange={(e) => setColumnFilters(prev => ({ ...prev, status: e.target.value }))}
+                            className="w-full p-2 border-0 bg-transparent"
+                            autoFocus
+                          >
+                            <option value="all">Alle Status</option>
+                            {uniqueStatuses.map(status => (
+                              <option key={status} value={status}>
+                                {getStatusText(status)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </th>
+                <th className="h-12 px-4 text-left align-middle font-medium">
+                  <div className="flex items-center space-x-2">
+                    <span>Auftragsdatum</span>
+                    <div className="relative">
+                      <button
+                        onClick={() => setActiveColumnFilter(activeColumnFilter === 'date' ? null : 'date')}
+                        className="p-1 hover:bg-muted rounded"
+                        title="Datum filtern"
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                      {activeColumnFilter === 'date' && (
+                        <div className="absolute top-full left-0 mt-1 bg-background border rounded-md shadow-lg z-10 min-w-40">
+                          <select
+                            value={columnFilters.date}
+                            onChange={(e) => setColumnFilters(prev => ({ ...prev, date: e.target.value }))}
+                            className="w-full p-2 border-0 bg-transparent"
+                            autoFocus
+                          >
+                            <option value="all">Alle Daten</option>
+                            {uniqueDates.map(date => (
+                              <option key={date} value={date}>
+                                {date}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </th>
                 <th className="h-12 px-4 text-left align-middle font-medium">Netto-Betrag</th>
                 <th className="h-12 px-4 text-left align-middle font-medium">Brutto-Betrag</th>
                 <th className="h-12 px-4 text-left align-middle font-medium">Positionen</th>
