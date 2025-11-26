@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(`${WECLAPP_API_URL}/task`, {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${WECLAPP_API_KEY}`
+        'AuthenticationToken': WECLAPP_API_KEY
       }
     });
 
