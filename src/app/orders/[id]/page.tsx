@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { ArrowLeft, Save, RefreshCw, Calendar, Euro, User, FileText, CheckCircle, AlertCircle, Clock } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import TaskManagement from '@/components/TaskManagement'
 
 interface OrderDetail {
   id: string
@@ -46,6 +47,7 @@ interface OrderTask {
   estimatedHours?: number
   actualHours?: number
   createdDate?: number
+  orderId: string // orderId hinzugefügt
 }
 
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
@@ -59,6 +61,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState<Partial<OrderDetail>>({})
+  const [userRole, setUserRole] = useState<string>('employee')
+  const [userId, setUserId] = useState<string>('')
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -94,7 +98,12 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         }
         
         const data = await response.json()
-        setTasks(data.result || [])
+        // Tasks mit orderId anreichern
+        const tasksWithOrderId = (data.result || []).map((task: OrderTask) => ({
+          ...task,
+          orderId: id
+        }))
+        setTasks(tasksWithOrderId)
         setTaskStats(data.stats)
       } catch (err: any) {
         console.error('Fehler beim Laden der Aufgaben:', err)
@@ -349,57 +358,14 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
               <RefreshCw className="mr-2 h-6 w-6 animate-spin" />
               <span>Lade Aufgaben...</span>
             </div>
-          ) : tasks.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <AlertCircle className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>Keine Aufgaben für diesen Auftrag gefunden</p>
-            </div>
           ) : (
-            <div className="space-y-3">
-              {tasks.map((task) => (
-                <div key={task.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <h3 className="font-medium">{task.name}</h3>
-                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getTaskStatusColor(task.status)}`}>
-                          {task.status}
-                        </span>
-                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getPriorityColor(task.priority)}`}>
-                          {task.priority}
-                        </span>
-                      </div>
-                      {task.description && (
-                        <p className="text-sm text-muted-foreground mb-2">{task.description}</p>
-                      )}
-                      <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                        {task.assignedUser && (
-                          <div className="flex items-center">
-                            <User className="mr-1 h-3 w-3" />
-                            {task.assignedUser}
-                          </div>
-                        )}
-                        {task.dueDate && (
-                          <div className={`flex items-center ${new Date(task.dueDate) < new Date() && task.status !== 'COMPLETED' ? 'text-red-600 font-medium' : ''}`}>
-                            <Calendar className="mr-1 h-3 w-3" />
-                            {new Date(task.dueDate).toLocaleDateString('de-DE')}
-                            {new Date(task.dueDate) < new Date() && task.status !== 'COMPLETED' && ' (Überfällig)'}
-                          </div>
-                        )}
-                        {(task.estimatedHours || task.actualHours) && (
-                          <div className="flex items-center">
-                            <Clock className="mr-1 h-3 w-3" />
-                            {task.estimatedHours && `${task.estimatedHours}h geschätzt`}
-                            {task.estimatedHours && task.actualHours && ' / '}
-                            {task.actualHours && `${task.actualHours}h tatsächlich`}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <TaskManagement
+              tasks={tasks}
+              orderId={id}
+              onTasksUpdate={setTasks}
+              userRole={userRole}
+              userId={userId}
+            />
           )}
         </div>
       </div>
