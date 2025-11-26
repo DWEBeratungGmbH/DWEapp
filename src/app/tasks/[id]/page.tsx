@@ -1,23 +1,31 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { ArrowLeft, Save, RefreshCw, Calendar, Clock, User, FileText, AlertCircle, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Save, RefreshCw, Calendar, Clock, User, FileText, AlertCircle, CheckCircle, Trash2, Edit3 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
 
 interface TaskDetail {
   id: string
-  projectId: string
-  name: string
+  title: string
   description?: string
   status: string
   priority: string
+  dueDate?: string
+  assignedUser?: string
+  assignedUserName?: string
+  assignedUserId?: string
+  orderId?: string
+  orderNumber?: string
+  createdDate?: string
   estimatedHours?: number
   actualHours?: number
-  assignedUserId?: string
-  dueDate?: number
-  createdAt: number
-  updatedAt: number
 }
 
 export default function TaskDetailPage({ params }: { params: { id: string } }) {
@@ -27,6 +35,7 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState<Partial<TaskDetail>>({})
 
   useEffect(() => {
@@ -40,13 +49,16 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
         }
         
         const data = await response.json()
-        setTask(data.result)
+        setTask(data.task)
         setFormData({
-          name: data.result.name,
-          description: data.result.description || '',
-          status: data.result.status,
-          priority: data.result.priority,
-          actualHours: data.result.actualHours || 0,
+          title: data.task.title,
+          description: data.task.description || '',
+          status: data.task.status,
+          priority: data.task.priority,
+          estimatedHours: data.task.estimatedHours || 0,
+          actualHours: data.task.actualHours || 0,
+          dueDate: data.task.dueDate ? new Date(data.task.dueDate).toISOString().split('T')[0] : '',
+          assignedUserId: data.task.assignedUserId || ''
         })
       } catch (err: any) {
         console.error('Fehler beim Laden der Aufgabe:', err)
@@ -68,11 +80,14 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: formData.name,
+          name: formData.title,
           description: formData.description,
           status: formData.status,
           priority: formData.priority,
+          estimatedHours: formData.estimatedHours,
           actualHours: formData.actualHours,
+          dueDate: formData.dueDate,
+          assignedUserId: formData.assignedUserId
         }),
       })
 
@@ -81,13 +96,37 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
       }
 
       const updatedTask = await response.json()
-      setTask(updatedTask.result)
-      alert('Aufgabe erfolgreich aktualisiert!')
+      setTask(updatedTask.task)
+      setIsEditing(false)
+      setError(null)
+      console.log('Aufgabe erfolgreich aktualisiert')
     } catch (err: any) {
       console.error('Fehler beim Speichern:', err)
-      alert('Fehler beim Speichern: ' + err.message)
+      setError('Fehler beim Speichern: ' + err.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm('Möchten Sie diese Aufgabe wirklich löschen?')) {
+      return
+    }
+    
+    try {
+      const response = await fetch(`/api/tasks/${id}`, {
+        method: 'DELETE'
+      })
+      
+      if (!response.ok) {
+        throw new Error('Löschen fehlgeschlagen')
+      }
+      
+      console.log('Aufgabe erfolgreich gelöscht')
+      router.push('/tasks')
+    } catch (err: any) {
+      console.error('Fehler beim Löschen:', err)
+      setError('Fehler beim Löschen: ' + err.message)
     }
   }
 
@@ -101,12 +140,31 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
     }
   }
 
+  const getStatusText = (status: string) => {
+    switch (status?.toUpperCase()) {
+      case 'COMPLETED': return 'Erledigt'
+      case 'IN_PROGRESS': return 'In Arbeit'
+      case 'OPEN': return 'Offen'
+      case 'OVERDUE': return 'Überfällig'
+      default: return status || 'Offen'
+    }
+  }
+
   const getPriorityColor = (priority: string) => {
     switch (priority?.toUpperCase()) {
-      case 'HIGH': return 'text-red-600'
-      case 'MEDIUM': return 'text-yellow-600'
-      case 'LOW': return 'text-green-600'
-      default: return 'text-gray-600'
+      case 'HIGH': return 'bg-red-100 text-red-800'
+      case 'MEDIUM': return 'bg-yellow-100 text-yellow-800'
+      case 'LOW': return 'bg-green-100 text-green-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getPriorityText = (priority: string) => {
+    switch (priority?.toUpperCase()) {
+      case 'HIGH': return 'Hoch'
+      case 'MEDIUM': return 'Mittel'
+      case 'LOW': return 'Niedrig'
+      default: return priority || 'Mittel'
     }
   }
 
@@ -134,116 +192,231 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Link href="/tasks" className="btn btn-ghost">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Aufgabendetails</h1>
-            <div className="text-sm text-muted-foreground">
-              ID: {task.id}
-            </div>
-          </div>
-          <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(task.status)}`}>
-            {task.status}
-          </span>
-        </div>
-        <button 
-          onClick={handleSave} 
-          disabled={saving}
-          className="btn btn-primary flex items-center"
-        >
-          {saving ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-          Speichern
-        </button>
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-6">
+        <Link href="/tasks" className="inline-flex items-center text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Zurück zu den Aufgaben
+        </Link>
       </div>
 
-      <div className="space-y-6">
-        <div className="rounded-lg border bg-card p-6 shadow-sm">
-          <h2 className="text-lg font-semibold mb-4 flex items-center">
-            <FileText className="mr-2 h-5 w-5 text-muted-foreground" />
-            Allgemeine Informationen
-          </h2>
-          
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Titel</label>
-              <input
-                type="text"
-                className="input w-full"
-                value={formData.name || ''}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
+      {error && (
+        <div className="mb-6 rounded-md border border-red-200 bg-red-50 p-4 text-red-800">
+          <strong>Fehler:</strong> {error}
+        </div>
+      )}
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Beschreibung</label>
-              <textarea
-                className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={formData.description || ''}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Beschreibung eingeben..."
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Status</label>
-                <select
-                  className="input w-full"
-                  value={formData.status || ''}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                >
-                  <option value="OPEN">Offen</option>
-                  <option value="IN_PROGRESS">In Bearbeitung</option>
-                  <option value="COMPLETED">Erledigt</option>
-                  <option value="CANCELLED">Storniert</option>
-                </select>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Hauptinhalt */}
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-2xl">Aufgabendetails</CardTitle>
+                <div className="flex items-center space-x-2">
+                  {!isEditing ? (
+                    <Button onClick={() => setIsEditing(true)} variant="outline" size="sm">
+                      <Edit3 className="mr-2 h-4 w-4" />
+                      Bearbeiten
+                    </Button>
+                  ) : (
+                    <>
+                      <Button onClick={handleSave} disabled={saving} size="sm">
+                        <Save className="mr-2 h-4 w-4" />
+                        {saving ? 'Speichern...' : 'Speichern'}
+                      </Button>
+                      <Button onClick={() => setIsEditing(false)} variant="outline" size="sm">
+                        Abbrechen
+                      </Button>
+                    </>
+                  )}
+                  <Button onClick={handleDelete} variant="destructive" size="sm">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Löschen
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Titel */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Titel</label>
+                {isEditing ? (
+                  <Input
+                    value={formData.title || ''}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="Aufgabentitel"
+                  />
+                ) : (
+                  <h3 className="text-lg font-semibold">{task.title}</h3>
+                )}
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Priorität</label>
-                <select
-                  className="input w-full"
-                  value={formData.priority || ''}
-                  onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                >
-                  <option value="LOW">Niedrig</option>
-                  <option value="MEDIUM">Mittel</option>
-                  <option value="HIGH">Hoch</option>
-                </select>
+              {/* Beschreibung */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Beschreibung</label>
+                {isEditing ? (
+                  <Textarea
+                    value={formData.description || ''}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Aufgabenbeschreibung"
+                    rows={4}
+                  />
+                ) : (
+                  <p className="text-muted-foreground">
+                    {task.description || 'Keine Beschreibung vorhanden'}
+                  </p>
+                )}
               </div>
-            </div>
-          </div>
+
+              {/* Status und Priorität */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Status</label>
+                  {isEditing ? (
+                    <Select value={formData.status || ''} onValueChange={(value: string) => setFormData({ ...formData, status: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Status wählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="OPEN">Offen</SelectItem>
+                        <SelectItem value="IN_PROGRESS">In Arbeit</SelectItem>
+                        <SelectItem value="COMPLETED">Erledigt</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge className={getStatusColor(task.status)}>
+                      {getStatusText(task.status)}
+                    </Badge>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Priorität</label>
+                  {isEditing ? (
+                    <Select value={formData.priority || ''} onValueChange={(value: string) => setFormData({ ...formData, priority: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Priorität wählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="LOW">Niedrig</SelectItem>
+                        <SelectItem value="MEDIUM">Mittel</SelectItem>
+                        <SelectItem value="HIGH">Hoch</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge className={getPriorityColor(task.priority)}>
+                      {getPriorityText(task.priority)}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* Geschätzte und tatsächliche Stunden */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Geschätzte Stunden</label>
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      value={formData.estimatedHours || ''}
+                      onChange={(e) => setFormData({ ...formData, estimatedHours: parseFloat(e.target.value) })}
+                      placeholder="Geschätzte Stunden"
+                    />
+                  ) : (
+                    <p className="text-muted-foreground">
+                      {task.estimatedHours ? `${task.estimatedHours} Stunden` : 'Nicht angegeben'}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Tatsächliche Stunden</label>
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      step="0.25"
+                      min="0"
+                      value={formData.actualHours || ''}
+                      onChange={(e) => setFormData({ ...formData, actualHours: parseFloat(e.target.value) })}
+                      placeholder="Tatsächliche Stunden"
+                    />
+                  ) : (
+                    <p className="text-muted-foreground">
+                      {task.actualHours ? `${task.actualHours} Stunden` : 'Nicht angegeben'}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Fälligkeitsdatum */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Fälligkeitsdatum</label>
+                {isEditing ? (
+                  <Input
+                    type="date"
+                    value={formData.dueDate || ''}
+                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                  />
+                ) : (
+                  <div className="flex items-center text-muted-foreground">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString('de-DE') : 'Kein Fälligkeitsdatum'}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        <div className="rounded-lg border bg-card p-6 shadow-sm">
-          <h2 className="text-lg font-semibold mb-4 flex items-center">
-            <Clock className="mr-2 h-5 w-5 text-muted-foreground" />
-            Zeiterfassung & Termine
-          </h2>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Fälligkeitsdatum</label>
-              <div className="flex items-center h-10 px-3 rounded-md border bg-muted/20">
-                {task.dueDate ? new Date(task.dueDate).toLocaleDateString('de-DE') : '-'}
+        {/* Seitenleiste */}
+        <div className="space-y-6">
+          {/* Metadaten */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Metadaten</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Aufgaben-ID</label>
+                <p className="text-sm text-muted-foreground">{task.id}</p>
               </div>
-            </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-1">Erstellt am</label>
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {task.createdDate ? new Date(task.createdDate).toLocaleDateString('de-DE') : 'Unbekannt'}
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Tatsächliche Stunden</label>
-              <input
-                type="number"
-                step="0.25"
-                className="input w-full"
-                value={formData.actualHours || 0}
-                onChange={(e) => setFormData({ ...formData, actualHours: parseFloat(e.target.value) })}
-              />
-            </div>
-          </div>
+              {task.orderNumber && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Auftrag</label>
+                  <p className="text-sm text-muted-foreground">#{task.orderNumber}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Zugewiesen an */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Zugewiesen an</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {task.assignedUserName ? (
+                <div className="flex items-center">
+                  <User className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <span>{task.assignedUserName}</span>
+                </div>
+              ) : (
+                <p className="text-muted-foreground">Nicht zugewiesen</p>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
