@@ -225,12 +225,14 @@ export default function TasksPage() {
     return Array.from(new Set(tasks.map(task => task.assignedUserName).filter(Boolean)))
   }, [tasks])
   
-  const uniqueDueDates = useMemo(() => {
-    const dates = tasks.map(task => {
-      if (!task.dueDate) return null
-      const date = new Date(task.dueDate)
-      return date.toLocaleDateString('de-DE')
-    }).filter(Boolean)
+  const uniqueDueDates = useMemo<string[]>(() => {
+    const dates = tasks
+      .map(task => {
+        if (!task.dueDate) return null
+        const date = new Date(task.dueDate)
+        return date.toLocaleDateString('de-DE')
+      })
+      .filter((date): date is string => Boolean(date))
     return Array.from(new Set(dates))
   }, [tasks])
 
