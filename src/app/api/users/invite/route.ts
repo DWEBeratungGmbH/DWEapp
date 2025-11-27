@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { UserRole } from '@/types'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 // Simulierte Einladungsdatenbank
 const invitations = new Map<string, {
   id: string
@@ -75,7 +78,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
+    const searchParams = request.nextUrl.searchParams;
     const token = searchParams.get('token')
 
     if (!token) {

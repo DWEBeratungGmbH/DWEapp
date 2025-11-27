@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import axios from 'axios'
 import { filterTasksByRole, User } from '@/services/roleBasedFilterService'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const taskData = await request.json()
@@ -154,7 +157,7 @@ export async function GET(request: NextRequest) {
       ]
 
       // Hole die orderId aus den Query-Parametern
-      const { searchParams } = new URL(request.url)
+      const searchParams = request.nextUrl.searchParams;
       const orderId = searchParams.get('orderId')
       const userId = searchParams.get('userId')
       const userRole = searchParams.get('userRole') as User['role'] | null
@@ -195,7 +198,7 @@ export async function GET(request: NextRequest) {
     }
 
     // WeClapp API v2 - Aufgaben abrufen
-    const { searchParams } = new URL(request.url)
+    const searchParams = request.nextUrl.searchParams;
     const userId = searchParams.get('userId')
     const userRole = searchParams.get('userRole')
     const assignedTo = searchParams.getAll('assignedTo') // Mehrere Benutzer unterstützen
