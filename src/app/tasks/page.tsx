@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import React, { Suspense, useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { 
   ClipboardList, 
   Plus, 
@@ -73,7 +73,7 @@ interface User {
   lastLoginDate?: number
 }
 
-export default function TasksPage() {
+function TasksPageContent() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -876,5 +876,13 @@ export default function TasksPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function TasksPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen">Lade Aufgaben...</div>}>
+      <TasksPageContent />
+    </Suspense>
   )
 }
