@@ -46,12 +46,12 @@ export const clockinService = {
   // Users
   async getUsers(): Promise<ClockInUser[]> {
     const response = await clockinApi.get("/users");
-    return response.data;
+    return response.data.data || response.data;
   },
 
   async getCurrentUser(): Promise<ClockInUser> {
     const response = await clockinApi.get("/users/me");
-    return response.data;
+    return response.data.data || response.data;
   },
 
   // Time Entries
@@ -62,17 +62,17 @@ export const clockinService = {
     if (endDate) params.append("endDate", endDate);
     
     const response = await clockinApi.get(`/time-entries?${params.toString()}`);
-    return response.data;
+    return response.data.data || response.data;
   },
 
   async createTimeEntry(entry: Omit<ClockInTimeEntry, "id">): Promise<ClockInTimeEntry> {
     const response = await clockinApi.post("/time-entries", entry);
-    return response.data;
+    return response.data.data || response.data;
   },
 
   async updateTimeEntry(id: string, entry: Partial<ClockInTimeEntry>): Promise<ClockInTimeEntry> {
     const response = await clockinApi.put(`/time-entries/${id}`, entry);
-    return response.data;
+    return response.data.data || response.data;
   },
 
   async deleteTimeEntry(id: string): Promise<void> {
@@ -86,18 +86,18 @@ export const clockinService = {
       description,
       type: "work",
     });
-    return response.data;
+    return response.data.data || response.data;
   },
 
   async stopTimer(timerId: string): Promise<ClockInTimeEntry> {
     const response = await clockinApi.post("/timer/stop", { timerId });
-    return response.data;
+    return response.data.data || response.data;
   },
 
   async getCurrentTimer(userId: string): Promise<ClockInTimeEntry | null> {
     try {
       const response = await clockinApi.get(`/timer/current/${userId}`);
-      return response.data;
+      return response.data.data || response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
         return null;
@@ -109,12 +109,12 @@ export const clockinService = {
   // Projects
   async getProjects(): Promise<ClockInProject[]> {
     const response = await clockinApi.get("/projects");
-    return response.data;
+    return response.data.data || response.data;
   },
 
   async createProject(project: Omit<ClockInProject, "id" | "createdAt" | "updatedAt">): Promise<ClockInProject> {
     const response = await clockinApi.post("/projects", project);
-    return response.data;
+    return response.data.data || response.data;
   },
 
   async syncProjectWithWeClapp(weClappProjectId: string): Promise<ClockInProject> {

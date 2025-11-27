@@ -89,10 +89,22 @@ export async function GET(request: NextRequest) {
     })
     
     if (!weClappResponse.ok) {
+      console.error(`WeClapp API error: ${weClappResponse.status} ${weClappResponse.statusText}`)
       throw new Error(`WeClapp API error: ${weClappResponse.status}`)
     }
     
-    const weClappData = await weClappResponse.json()
+    const responseText = await weClappResponse.text()
+    console.log('WeClapp API Response:', responseText.substring(0, 200))
+    
+    let weClappData
+    try {
+      weClappData = JSON.parse(responseText)
+    } catch (parseError: any) {
+      console.error('JSON Parse Error:', parseError)
+      console.error('Response text:', responseText.substring(0, 500))
+      throw new Error(`Invalid JSON response from WeClapp API: ${parseError.message || 'Unknown parsing error'}`)
+    }
+    
     const weClappUsers = weClappData.result || []
     
     // User Matching durchführen

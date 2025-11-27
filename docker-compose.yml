@@ -7,15 +7,17 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_WECLAPP_API_URL=https://ihr-weclapp.weclapp.com/webapp/api/v1
-      - NEXT_PUBLIC_WECLAPP_API_KEY=IHR_WECLAPP_API_KEY_HIER
-      - NEXT_PUBLIC_AZURE_AD_CLIENT_ID=25e2203c-f668-482f-acdb-e758de9aef23
-      - NEXT_PUBLIC_AZURE_AD_TENANT_ID=16fb7d46-199f-417d-9460-ebb505438d0c
-      - NEXT_PUBLIC_REDIRECT_URI=http://91.98.135.191
-      - NEXT_PUBLIC_CLOCKIN_API_URL=https://api.clockin.io/v1
-      - NEXT_PUBLIC_CLOCKIN_API_KEY=IHR_CLOCKIN_API_KEY_HIER
-      - NEXTAUTH_URL=http://91.98.135.191
-      - NEXTAUTH_SECRET=SuperSecureSecretString12345
+      - NEXT_PUBLIC_WECLAPP_API_URL=https://dwe.weclapp.com/webapp/api/v2
+      - NEXT_PUBLIC_WECLAPP_API_KEY=${WECLAPP_API_KEY}
+      - NEXT_PUBLIC_AZURE_AD_CLIENT_ID=${AZURE_AD_CLIENT_ID}
+      - NEXT_PUBLIC_AZURE_AD_TENANT_ID=${AZURE_AD_TENANT_ID}
+      - NEXT_PUBLIC_REDIRECT_URI=https://91.98.135.191/api/auth/callback/azure-ad
+      - NEXT_PUBLIC_CLOCKIN_API_URL=https://customerapi.clockin.de/v3
+      - NEXT_PUBLIC_CLOCKIN_API_KEY=${CLOCKIN_API_KEY}
+      - NEXTAUTH_URL=https://91.98.135.191
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - AZURE_AD_CLIENT_SECRET=${AZURE_AD_CLIENT_SECRET}
+      - AZURE_AD_CLIENT_SECRET_ID=${AZURE_AD_CLIENT_SECRET_ID}
     restart: unless-stopped
     networks:
       - app-network
@@ -24,8 +26,11 @@ services:
     image: nginx:alpine
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - /opt/weclapp-manager/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/ssl/certs/weclapp-manager.crt:/etc/ssl/certs/weclapp-manager.crt:ro
+      - /etc/ssl/private/weclapp-manager.key:/etc/ssl/private/weclapp-manager.key:ro
     depends_on:
       - weclapp-manager
     restart: unless-stopped
