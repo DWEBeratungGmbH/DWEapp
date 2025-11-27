@@ -42,7 +42,7 @@ jobs:
     - name: Health Check
       run: |
         sleep 30
-        curl -f http://${{ secrets.SERVER_IP }} || exit 1
+        curl -k -f https://${{ secrets.SERVER_IP }} || exit 1
         
     - name: Notify success
       run: echo "🚀 Deployment successful! App is live at http://${{ secrets.SERVER_IP }}"
