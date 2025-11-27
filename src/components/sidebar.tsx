@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { cn } from '@/lib/utils'
 import { 
   LayoutDashboard, 
@@ -12,11 +13,14 @@ import {
   Clock,
   BarChart3,
   UserCircle,
-  Filter
+  Filter,
+  Shield
 } from 'lucide-react'
 
-export function Sidebar({ userRole = 'employee' }: { userRole?: string }) {
+export function Sidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
+  const userRole = session?.user?.role?.toLowerCase() || 'employee'
 
   // Rollen-basierte Navigation
   const getNavigation = () => {
@@ -30,6 +34,7 @@ export function Sidebar({ userRole = 'employee' }: { userRole?: string }) {
       { name: 'Team', href: '/team', icon: Users, roles: ['admin', 'manager'] },
       { name: 'Kunden', href: '/customers', icon: Users, roles: ['admin', 'manager'] },
       { name: 'Statistik', href: '/reports', icon: BarChart3, roles: ['admin', 'manager'] },
+      { name: 'Admin-Einstellungen', href: '/admin', icon: Shield, roles: ['admin'] },
       { name: 'Einstellungen', href: '/settings', icon: Settings, roles: ['admin'] },
     ]
 
@@ -49,7 +54,7 @@ export function Sidebar({ userRole = 'employee' }: { userRole?: string }) {
         <div className="flex items-center gap-3">
           <UserCircle className="h-8 w-8 text-muted-foreground" />
           <div>
-            <div className="text-sm font-medium">Benutzer</div>
+            <div className="text-sm font-medium">{session?.user?.name || 'Benutzer'}</div>
             <div className="text-xs text-muted-foreground capitalize">{userRole}</div>
           </div>
         </div>

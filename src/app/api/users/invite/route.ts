@@ -1,25 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 import { UserRole } from '@/types'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
-// Simulierte Einladungsdatenbank
-const invitations = new Map<string, {
-  id: string
-  email: string
-  weclappUserId: string
-  role: UserRole
-  token: string
-  status: 'pending' | 'accepted' | 'expired'
-  createdAt: string
-  expiresAt: string
-}>()
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, weclappUserId, role = 'employee' } = body
+    const { email, weclappUserId, role = 'USER' } = body
 
     if (!email || !weclappUserId) {
       return NextResponse.json(
@@ -28,40 +17,65 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Prüfe ob User bereits existiert
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    })
+
+    if (existingUser) {
+      return NextResponse.json(
+        { error: 'User mit dieser Email existiert bereits' },
+        { status: 400 }
+      )
+    }
+
+    // Finde den Admin-User (der die Einladung erstellt)
+    const adminUser = await prisma.user.findFirst({
+      where: { role: 'ADMIN' }
+    })
+
+    if (!adminUser) {
+      return NextResponse.json(
+        { error: 'Kein Admin-User gefunden' },
+        { status: 500 }
+      )
+    }
+
     // Generiere Einladungs-Token
     const token = generateInviteToken()
-    const invitationId = generateId()
     
     // Erstelle Einladung mit 7 Tagen Gültigkeit
     const now = new Date()
     const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
     
-    const invitation = {
-      id: invitationId,
-      email,
-      weclappUserId,
-      role: role as UserRole,
-      token,
-      status: 'pending' as const,
-      createdAt: now.toISOString(),
-      expiresAt: expiresAt.toISOString()
-    }
-
-    // Speichere Einladung
-    invitations.set(invitationId, invitation)
+    const invitation = await prisma.invitation.create({
+      data: {
+        email,
+        token,
+        expiresAt,
+        invitedBy: {
+          connect: { id: adminUser.id }
+        }
+      },
+      include: {
+        invitedBy: true
+      }
+    })
 
     console.log(`Invitation created: ${email} -> ${weclappUserId} as ${role}`)
 
     // In einer echten Anwendung würde hier eine E-Mail gesendet
     // Für jetzt geben wir die Einladungs-URL zurück
-    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${token}`
+    const inviteUrl = `${process.env.NEXTAUTH_URL}/invite/${token}`
 
     return NextResponse.json({ 
       success: true,
       message: 'Einladung erfolgreich erstellt',
       result: {
         invitation,
-        inviteUrl
+        inviteUrl,
+        weclappUserId,
+        role
       }
     })
   } catch (error: any) {
@@ -89,7 +103,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Finde Einladung per Token
-    const invitation = Array.from(invitations.values()).find(inv => inv.token === token)
+    const invitation = await prisma.invitation.findUnique({
+      where: { token },
+      include: {
+        invitedBy: true
+      }
+    })
 
     if (!invitation) {
       return NextResponse.json(
@@ -99,11 +118,18 @@ export async function GET(request: NextRequest) {
     }
 
     // Prüfe ob Einladung abgelaufen ist
-    if (new Date() > new Date(invitation.expiresAt)) {
-      invitation.status = 'expired'
+    if (new Date() > invitation.expiresAt) {
       return NextResponse.json(
         { error: 'Einladung abgelaufen' },
         { status: 410 }
+      )
+    }
+
+    // Prüfe ob Einladung bereits verwendet wurde
+    if (invitation.isUsed) {
+      return NextResponse.json(
+        { error: 'Einladung wurde bereits verwendet' },
+        { status: 400 }
       )
     }
 
@@ -123,45 +149,72 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { token, localUserId } = body
+    const { token, email, name, weClappUserId, role = 'USER' } = body
 
-    if (!token || !localUserId) {
+    if (!token || !email) {
       return NextResponse.json(
-        { error: 'Token und Local User ID sind erforderlich' },
+        { error: 'Token und Email sind erforderlich' },
         { status: 400 }
       )
     }
 
     // Finde Einladung per Token
-    const invitationEntry = Array.from(invitations.entries()).find(([_, inv]) => inv.token === token)
+    const invitation = await prisma.invitation.findUnique({
+      where: { token },
+      include: {
+        invitedBy: true
+      }
+    })
 
-    if (!invitationEntry) {
+    if (!invitation) {
       return NextResponse.json(
         { error: 'Ungültige Einladung' },
         { status: 404 }
       )
     }
 
-    const [invitationId, invitation] = invitationEntry
-
-    // Prüfe ob Einladung bereits akzeptiert wurde
-    if (invitation.status === 'accepted') {
+    // Prüfe ob Einladung bereits verwendet wurde
+    if (invitation.isUsed) {
       return NextResponse.json(
-        { error: 'Einladung wurde bereits akzeptiert' },
+        { error: 'Einladung wurde bereits verwendet' },
         { status: 400 }
       )
     }
 
-    // Akzeptiere Einladung
-    invitation.status = 'accepted'
-    invitations.set(invitationId, invitation)
+    // Prüfe ob Einladung abgelaufen ist
+    if (new Date() > invitation.expiresAt) {
+      return NextResponse.json(
+        { error: 'Einladung abgelaufen' },
+        { status: 410 }
+      )
+    }
 
-    console.log(`Invitation accepted: ${invitation.email} -> ${localUserId}`)
+    // Erstelle den neuen User
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name,
+        role: role as any,
+        weClappUserId,
+        isActive: true
+      }
+    })
+
+    // Markiere Einladung als verwendet
+    await prisma.invitation.update({
+      where: { id: invitation.id },
+      data: { isUsed: true }
+    })
+
+    console.log(`Invitation accepted: ${email} -> User ${user.id}`)
 
     return NextResponse.json({ 
       success: true,
       message: 'Einladung erfolgreich akzeptiert',
-      result: invitation
+      result: {
+        user,
+        invitation: { ...invitation, isUsed: true }
+      }
     })
   } catch (error: any) {
     console.error('Invite PUT Error:', error.message)
@@ -179,8 +232,4 @@ export async function PUT(request: NextRequest) {
 function generateInviteToken(): string {
   return Math.random().toString(36).substring(2, 15) + 
          Math.random().toString(36).substring(2, 15)
-}
-
-function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).substring(2)
 }

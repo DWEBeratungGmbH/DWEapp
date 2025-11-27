@@ -1,6 +1,39 @@
 import { NextAuthOptions } from 'next-auth'
 import MicrosoftProvider from 'next-auth/providers/azure-ad'
 import CredentialsProvider from 'next-auth/providers/credentials'
+import { prisma } from '@/lib/prisma'
+
+declare module 'next-auth' {
+  interface Session {
+    user: {
+      id: string
+      email: string
+      name: string
+      role: string
+      department?: string
+      weClappUserId?: string
+      dbUserId?: string
+    }
+  }
+
+  interface User {
+    id: string
+    email: string
+    name: string
+    role: string
+    department?: string
+    weClappUserId?: string
+  }
+
+  interface JWT {
+    accessToken?: string
+    idToken?: string
+    dbUserId?: string
+    userRole?: string
+    userDepartment?: string
+    weClappUserId?: string
+  }
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -17,26 +50,25 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
-        email: { label: "Email", type: "email", placeholder: "admin@example.com" },
+        email: { label: "Email", type: "email", placeholder: "admin@dwe.de" },
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        // TODO: Hier später echte Datenbank-Abfrage einbauen
-        // Vorläufiger Test-User
+        // Admin-Zugänge für lokale Entwicklung
         if (
-          credentials?.email === "admin@dwe.de" &&
-          credentials?.password === "admin123"
+          credentials?.email === "sebastian@dwe-beratung.de" ||
+          credentials?.email === "admin@dwe.de"
         ) {
-          return {
-            id: "1",
-            name: "Admin User",
-            email: "admin@dwe.de",
-            role: "admin",
-            department: "IT"
+          if (credentials?.password === "admin123") {
+            return {
+              id: credentials.email === "sebastian@dwe-beratung.de" ? "1" : "2",
+              name: credentials.email === "sebastian@dwe-beratung.de" ? "Sebastian DWE" : "Admin User",
+              email: credentials.email,
+              role: "ADMIN",
+              department: "Management"
+            }
           }
         }
-        
-        // Hier können weitere User/Logik hinzugefügt werden
         
         return null
       }
@@ -50,10 +82,56 @@ export const authOptions: NextAuthOptions = {
         token.idToken = account.id_token
       }
       
-      // User Matching durchführen
+      // Admin-Rechte für Sebastian erzwingen
+      if (user?.email === 'sebastian@dwe-beratung.de' || token?.email === 'sebastian@dwe-beratung.de') {
+        token.role = 'ADMIN'
+        token.userRole = 'ADMIN'
+      }
+
+      // User in Datenbank suchen/erstellen
       if (user?.email) {
         try {
-          // User Matching API intern aufrufen (absolute URL innerhalb des Containers, ohne nginx/SSL)
+          let dbUser = await prisma.user.findUnique({
+            where: { email: user.email }
+          })
+
+          // Wenn User nicht existiert, prüfen ob eine Einladung vorliegt
+          if (!dbUser) {
+            const invitation = await prisma.invitation.findFirst({
+              where: { 
+                email: user.email,
+                isUsed: false,
+                expiresAt: { gt: new Date() }
+              },
+              include: { invitedBy: true }
+            })
+
+            if (invitation) {
+              // User aus Einladung erstellen (mit WeClapp-Daten)
+              dbUser = await prisma.user.create({
+                data: {
+                  email: user.email,
+                  name: user.name || user.email,
+                  role: 'USER',
+                  isActive: true
+                }
+              })
+
+              // Einladung als verwendet markieren
+              await prisma.invitation.update({
+                where: { id: invitation.id },
+                data: { isUsed: true }
+              })
+
+              console.log(`User ${user.email} aus Einladung erstellt`)
+            } else {
+              // Keine Einladung gefunden - Zugriff verweigern
+              console.log(`Keine Einladung für ${user.email} gefunden`)
+              throw new Error('Keine gültige Einladung gefunden')
+            }
+          }
+
+          // User Matching mit WeClapp durchführen
           const matchingResponse = await fetch('http://127.0.0.1:3000/api/userMatching', {
             method: 'GET',
             headers: {
@@ -68,14 +146,32 @@ export const authOptions: NextAuthOptions = {
             )
             
             if (matchedUser) {
+              // WeClapp-Daten in Datenbank aktualisieren
+              dbUser = await prisma.user.update({
+                where: { id: dbUser.id },
+                data: {
+                  weClappUserId: matchedUser.weClappUserId,
+                  department: matchedUser.department,
+                  role: matchedUser.role
+                }
+              })
+              
               token.weClappUserId = matchedUser.weClappUserId
               token.role = matchedUser.role
               token.department = matchedUser.department
               console.log(`User ${user.email} gematched mit WeClapp User ${matchedUser.weClappUserId} als ${matchedUser.role}`)
             }
           }
+
+          // User-Daten in Token speichern
+          token.dbUserId = dbUser.id
+          token.userRole = dbUser.role
+          token.userDepartment = dbUser.department
+          token.weClappUserId = dbUser.weClappUserId
+          
         } catch (error) {
-          console.error('User Matching Error:', error)
+          console.error('User Database Error:', error)
+          throw error
         }
       }
       
@@ -83,14 +179,15 @@ export const authOptions: NextAuthOptions = {
     },
     
     async session({ session, token }: any) {
-      // Session mit WeClapp Daten anreichern
+      // Session mit Datenbank-Daten anreichern
       if (token) {
         session.user.id = token.sub!
         session.user.email = token.email!
         session.user.name = token.name!
-        session.user.weClappUserId = token.weClappUserId as string
-        session.user.role = token.role as string
-        session.user.department = token.department as string
+        session.user.dbUserId = token.dbUserId
+        session.user.role = token.userRole
+        session.user.department = token.userDepartment
+        session.user.weClappUserId = token.weClappUserId
       }
       
       return session
