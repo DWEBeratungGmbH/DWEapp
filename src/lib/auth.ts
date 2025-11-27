@@ -53,8 +53,8 @@ export const authOptions: NextAuthOptions = {
       // User Matching durchführen
       if (user?.email) {
         try {
-          // User Matching API intern aufrufen (relative URL, bleibt im gleichen Next.js-Server)
-          const matchingResponse = await fetch('/api/userMatching', {
+          // User Matching API intern aufrufen (absolute URL innerhalb des Containers, ohne nginx/SSL)
+          const matchingResponse = await fetch('http://localhost:3000/api/userMatching', {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json'
