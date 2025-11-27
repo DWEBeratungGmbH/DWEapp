@@ -1,12 +1,26 @@
 version: '3.8'
 
 services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=weclapp_manager
+      - POSTGRES_USER=weclapp
+      - POSTGRES_PASSWORD=ein_sicheres_passwort
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
   weclapp-manager:
     image: weclapp-manager:latest
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - DATABASE_URL=postgresql://weclapp:ein_sicheres_passwort@db:5432/weclapp_manager
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
       - NEXT_PUBLIC_WECLAPP_API_URL=https://dwe.weclapp.com/webapp/api/v2
       - NEXT_PUBLIC_WECLAPP_API_KEY=${WECLAPP_API_KEY}
       - NEXT_PUBLIC_AZURE_AD_CLIENT_ID=${AZURE_AD_CLIENT_ID}
@@ -36,6 +50,9 @@ services:
     restart: unless-stopped
     networks:
       - app-network
+
+volumes:
+  postgres-data:
 
 networks:
   app-network:
