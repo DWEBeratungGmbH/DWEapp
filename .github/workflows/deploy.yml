@@ -29,12 +29,17 @@ jobs:
           git pull origin main
           
           # Docker rebuild
-          docker-compose down
-          docker build -t weclapp-manager:latest .
-          docker-compose up -d
+          docker-compose down --remove-orphans
+          docker system prune -f
           
-          # Cleanup old images
-          docker image prune -f
+          # Update docker-compose if needed (to fix KeyError: 'ContainerConfig')
+          if docker-compose --version | grep -q "1.29"; then
+              sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              sudo chmod +x /usr/local/bin/docker-compose
+          fi
+          
+          docker build -t weclapp-manager:latest .
+          docker-compose up -d --force-recreate
           
           echo "✅ Deployment completed!"
         EOF
