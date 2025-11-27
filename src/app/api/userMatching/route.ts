@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { enrichAppUsers, determineUserRole } from '@/services/userMatchingService'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
+    const searchParams = request.nextUrl.searchParams;
     const includeRoles = searchParams.get('includeRoles') === 'true'
     
     // Hole App-User (aus Azure AD / Session)
