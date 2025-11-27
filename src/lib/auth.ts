@@ -1,5 +1,6 @@
 import { NextAuthOptions } from 'next-auth'
 import MicrosoftProvider from 'next-auth/providers/azure-ad'
+import CredentialsProvider from 'next-auth/providers/credentials'
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -11,6 +12,33 @@ export const authOptions: NextAuthOptions = {
         params: {
           scope: 'openid profile email User.Read'
         }
+      }
+    }),
+    CredentialsProvider({
+      name: 'Credentials',
+      credentials: {
+        email: { label: "Email", type: "email", placeholder: "admin@example.com" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        // TODO: Hier später echte Datenbank-Abfrage einbauen
+        // Vorläufiger Test-User
+        if (
+          credentials?.email === "admin@dwe.de" &&
+          credentials?.password === "admin123"
+        ) {
+          return {
+            id: "1",
+            name: "Admin User",
+            email: "admin@dwe.de",
+            role: "admin",
+            department: "IT"
+          }
+        }
+        
+        // Hier können weitere User/Logik hinzugefügt werden
+        
+        return null
       }
     })
   ],
