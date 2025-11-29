@@ -1,204 +1,112 @@
-import { NextAuthOptions } from 'next-auth'
-import MicrosoftProvider from 'next-auth/providers/azure-ad'
-import CredentialsProvider from 'next-auth/providers/credentials'
+import NextAuth, { DefaultSession } from 'next-auth'
+import AzureADProvider from 'next-auth/providers/azure-ad'
+import { PrismaAdapter } from '@next-auth/prisma-adapter'
 import { prisma } from '@/lib/prisma'
 
 declare module 'next-auth' {
   interface Session {
     user: {
       id: string
-      email: string
-      name: string
       role: string
-      department?: string
-      weClappUserId?: string
-      dbUserId?: string
-    }
+    } & DefaultSession['user']
   }
-
+  
   interface User {
-    id: string
-    email: string
-    name: string
     role: string
-    department?: string
-    weClappUserId?: string
-  }
-
-  interface JWT {
-    accessToken?: string
-    idToken?: string
-    dbUserId?: string
-    userRole?: string
-    userDepartment?: string
-    weClappUserId?: string
   }
 }
 
-export const authOptions: NextAuthOptions = {
+export const authOptions = {
+  adapter: PrismaAdapter(prisma),
   providers: [
-    MicrosoftProvider({
-      clientId: process.env.NEXT_PUBLIC_AZURE_AD_CLIENT_ID!,
+    AzureADProvider({
+      clientId: process.env.AZURE_AD_CLIENT_ID!,
       clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
-      tenantId: process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID!,
-      authorization: {
-        params: {
-          scope: 'openid profile email User.Read'
-        }
-      }
+      tenantId: process.env.AZURE_AD_TENANT_ID!,
     }),
-    CredentialsProvider({
-      name: 'Credentials',
-      credentials: {
-        email: { label: "Email", type: "email", placeholder: "admin@dwe.de" },
-        password: { label: "Password", type: "password" }
-      },
-      async authorize(credentials) {
-        // Admin-Zugänge für lokale Entwicklung
-        if (
-          credentials?.email === "sebastian@dwe-beratung.de" ||
-          credentials?.email === "admin@dwe.de"
-        ) {
-          if (credentials?.password === "admin123") {
-            return {
-              id: credentials.email === "sebastian@dwe-beratung.de" ? "1" : "2",
-              name: credentials.email === "sebastian@dwe-beratung.de" ? "Sebastian DWE" : "Admin User",
-              email: credentials.email,
-              role: "ADMIN",
-              department: "Management"
-            }
-          }
-        }
-        
-        return null
-      }
-    })
   ],
   callbacks: {
-    async jwt({ token, account, user }: any) {
-      // Microsoft AD Token speichern
-      if (account) {
-        token.accessToken = account.access_token
-        token.idToken = account.id_token
-      }
-      
-      // Admin-Rechte für Sebastian erzwingen
-      if (user?.email === 'sebastian@dwe-beratung.de' || token?.email === 'sebastian@dwe-beratung.de') {
-        token.role = 'ADMIN'
-        token.userRole = 'ADMIN'
-      }
-
-      // User in Datenbank suchen/erstellen
-      if (user?.email) {
+    session: async ({ session, token }: { session: any; token: any }) => {
+      if (session?.user && token?.sub) {
         try {
-          let dbUser = await prisma.user.findUnique({
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.sub }
+          })
+          
+          if (dbUser) {
+            session.user.id = dbUser.id
+            session.user.role = dbUser.role // Rolle aus Datenbank verwenden
+          }
+        } catch (error) {
+          console.error('Session callback error:', error)
+        }
+      }
+      return session
+    },
+    jwt: async ({ token, user }: { token: any; user: any }) => {
+      if (user) {
+        token.sub = user.id
+      }
+      return token
+    },
+    signIn: async ({ user, account, profile }: { user: any; account: any; profile?: any }) => {
+      if (account?.provider === 'azure-ad' && user?.email) {
+        try {
+          // Prüfen ob Account bereits existiert
+          const existingAccount = await prisma.account.findUnique({
+            where: {
+              provider_providerAccountId: {
+                provider: account.provider,
+                providerAccountId: account.providerAccountId
+              }
+            }
+          })
+
+          if (existingAccount) {
+            console.log('✅ Azure AD Account existiert bereits')
+            return true
+          }
+
+          // Prüfen ob Benutzer bereits existiert
+          const existingUser = await prisma.user.findUnique({
             where: { email: user.email }
           })
 
-          // Wenn User nicht existiert, prüfen ob eine Einladung vorliegt
-          if (!dbUser) {
-            const invitation = await prisma.invitation.findFirst({
-              where: { 
-                email: user.email,
-                isUsed: false,
-                expiresAt: { gt: new Date() }
-              },
-              include: { invitedBy: true }
+          if (existingUser) {
+            // Account mit existierendem Benutzer verknüpfen
+            await prisma.account.create({
+              data: {
+                userId: existingUser.id,
+                type: account.type,
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+                refresh_token: account.refresh_token,
+                access_token: account.access_token,
+                expires_at: account.expires_at,
+                token_type: account.token_type,
+                scope: account.scope,
+                id_token: account.id_token,
+                session_state: account.session_state
+              }
             })
-
-            if (invitation) {
-              // User aus Einladung erstellen (mit WeClapp-Daten)
-              dbUser = await prisma.user.create({
-                data: {
-                  email: user.email,
-                  name: user.name || user.email,
-                  role: 'USER',
-                  isActive: true
-                }
-              })
-
-              // Einladung als verwendet markieren
-              await prisma.invitation.update({
-                where: { id: invitation.id },
-                data: { isUsed: true }
-              })
-
-              console.log(`User ${user.email} aus Einladung erstellt`)
-            } else {
-              // Keine Einladung gefunden - Zugriff verweigern
-              console.log(`Keine Einladung für ${user.email} gefunden`)
-              throw new Error('Keine gültige Einladung gefunden')
-            }
-          }
-
-          // User Matching mit WeClapp durchführen
-          const matchingResponse = await fetch('http://127.0.0.1:3000/api/userMatching', {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          })
-          
-          if (matchingResponse.ok) {
-            const matchingData = await matchingResponse.json()
-            const matchedUser = matchingData.users.find((u: any) => 
-              u.email.toLowerCase() === user.email?.toLowerCase()
-            )
             
-            if (matchedUser) {
-              // WeClapp-Daten in Datenbank aktualisieren
-              dbUser = await prisma.user.update({
-                where: { id: dbUser.id },
-                data: {
-                  weClappUserId: matchedUser.weClappUserId,
-                  department: matchedUser.department,
-                  role: matchedUser.role
-                }
-              })
-              
-              token.weClappUserId = matchedUser.weClappUserId
-              token.role = matchedUser.role
-              token.department = matchedUser.department
-              console.log(`User ${user.email} gematched mit WeClapp User ${matchedUser.weClappUserId} als ${matchedUser.role}`)
-            }
+            console.log('✅ Azure AD Account mit existierendem Benutzer verknüpft')
+            return true
           }
-
-          // User-Daten in Token speichern
-          token.dbUserId = dbUser.id
-          token.userRole = dbUser.role
-          token.userDepartment = dbUser.department
-          token.weClappUserId = dbUser.weClappUserId
-          
         } catch (error) {
-          console.error('User Database Error:', error)
-          throw error
+          console.error('❌ Fehler beim Verknüpfen des Accounts:', error)
+          return false
         }
       }
-      
-      return token
+      return true
     },
-    
-    async session({ session, token }: any) {
-      // Session mit Datenbank-Daten anreichern
-      if (token) {
-        session.user.id = token.sub!
-        session.user.email = token.email!
-        session.user.name = token.name!
-        session.user.dbUserId = token.dbUserId
-        session.user.role = token.userRole
-        session.user.department = token.userDepartment
-        session.user.weClappUserId = token.weClappUserId
-      }
-      
-      return session
-    }
-  },
-  pages: {
-    signIn: '/auth/signin',
-    error: '/auth/error'
   },
   session: {
-    strategy: 'jwt'
+    strategy: 'jwt' as const,
   },
-  secret: process.env.NEXTAUTH_SECRET
+  pages: {
+    signIn: '/',
+  },
 }
+
+export default NextAuth(authOptions)

@@ -1,8 +1,11 @@
-"use client"
+'use client'
 
-import React, { useEffect, useState, useMemo, useRef } from 'react'
-import { ClipboardList, Plus, Search, Filter, Calendar, RefreshCw, Euro, User, FileText, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronUp, X } from 'lucide-react'
-import Link from 'next/link'
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { Plus, Search, Filter, Calendar, RefreshCw, Euro, FileText, CheckCircle, Clock, XCircle, Truck } from 'lucide-react'
+import DashboardLayout from '@/components/dashboard-layout'
+import { PageLayout, PageHeader, Card, KPICard } from '@/components/ui/page-layout'
 
 interface Order {
   id: string
@@ -15,89 +18,30 @@ interface Order {
   grossAmount: string
   recordCurrencyName: string
   description?: string
-  invoiceAddress?: {
-    firstName?: string
-    lastName?: string
-    city?: string
-    street1?: string
-    zipcode?: string
-    countryCode?: string
-  }
-  orderItems?: Array<{
-    id: string
-    title: string
-    quantity: string
-    unitPrice: string
-    articleNumber?: string
-    description?: string
-  }>
-}
-
-interface Task {
-  id: string
-  name: string
-  status: string
-  priority: string
-  dueDate?: number
-  assignedUser?: string
-  assignedUserId?: string
-  description?: string
-  estimatedHours?: number
-  actualHours?: number
-  createdDate?: number
-  orderId?: string
 }
 
 export default function OrdersPage() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set())
-  const [tasksData, setTasksData] = useState<Record<string, Task[]>>({})
-  const [loadingTasks, setLoadingTasks] = useState<Set<string>>(new Set())
-  const [userRole, setUserRole] = useState<string>('employee')
-  const [userId, setUserId] = useState<string>('')
-
-  // Filter States
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [dateFilter, setDateFilter] = useState<string>('all')
-  const [showFilters, setShowFilters] = useState(false)
 
-  // Column header filter states
-  const [columnFilters, setColumnFilters] = useState({
-    status: 'all',
-    customer: 'all',
-    date: 'all'
-  })
-  const [activeColumnFilter, setActiveColumnFilter] = useState<string | null>(null)
-  const tableRef = useRef<HTMLTableElement>(null)
-
-  // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (tableRef.current && !tableRef.current.contains(event.target as Node)) {
-        setActiveColumnFilter(null)
-      }
+    if (status === 'unauthenticated') {
+      router.push('/')
     }
-
-    if (activeColumnFilter) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [activeColumnFilter])
+  }, [status, router])
 
   useEffect(() => {
     const fetchOrders = async () => {
       try {
         setLoading(true)
-        // API Call mit Rollen-Filter
-        const response = await fetch(`/api/orders?userId=${userId}&userRole=${userRole}`)
-
+        const response = await fetch('/api/orders')
         if (!response.ok) {
           throw new Error('Aufträge konnten nicht geladen werden')
         }
-
         const data = await response.json()
         setOrders(data.orders || [])
         setError(null)
@@ -109,147 +53,28 @@ export default function OrdersPage() {
       }
     }
 
-    fetchOrders()
-  }, [userId, userRole])
-
-  const fetchTasksForOrder = async (orderId: string) => {
-    if (tasksData[orderId] || loadingTasks.has(orderId)) {
-      return
+    if (status === 'authenticated') {
+      fetchOrders()
     }
+  }, [status])
 
-    setLoadingTasks(prev => new Set(prev).add(orderId))
-
-    try {
-      const response = await fetch(`/api/orders/${orderId}/tasks`)
-
-      if (!response.ok) {
-        throw new Error('Tasks konnten nicht geladen werden')
-      }
-
-      const data = await response.json()
-      setTasksData(prev => ({
-        ...prev,
-        [orderId]: data.result || []
-      }))
-    } catch (err: any) {
-      console.error('Fehler beim Abrufen der Tasks:', err)
-    } finally {
-      setLoadingTasks(prev => {
-        const newSet = new Set(prev)
-        newSet.delete(orderId)
-        return newSet
-      })
-    }
-  }
-
-  // Get unique values for column filters
-  const uniqueStatuses = useMemo(() => {
-    return Array.from(new Set(orders.map(order => order.status).filter(Boolean)))
-  }, [orders])
-
-  const uniqueCustomers = useMemo(() => {
-    return Array.from(new Set(orders.map(order => {
-      const name = order.invoiceAddress?.firstName && order.invoiceAddress?.lastName
-        ? `${order.invoiceAddress.firstName} ${order.invoiceAddress.lastName}`
-        : `Kunde ${order.customerNumber}`
-      return name
-    }).filter(Boolean)))
-  }, [orders])
-
-  const uniqueDates = useMemo(() => {
-    const dates = orders.map(order => {
-      const date = new Date(order.orderDate)
-      return date.toLocaleDateString('de-DE')
-    }).filter(Boolean)
-    return Array.from(new Set(dates))
-  }, [orders])
-
-  // Filter Logik
   const filteredOrders = orders.filter(order => {
-    // Column header filters
-    if (columnFilters.status !== 'all' && order.status !== columnFilters.status) {
-      return false
-    }
-
-    if (columnFilters.customer !== 'all') {
-      const customerName = order.invoiceAddress?.firstName && order.invoiceAddress?.lastName
-        ? `${order.invoiceAddress.firstName} ${order.invoiceAddress.lastName}`
-        : `Kunde ${order.customerNumber}`
-      if (customerName !== columnFilters.customer) {
-        return false
-      }
-    }
-
-    if (columnFilters.date !== 'all') {
-      const orderDate = new Date(order.orderDate).toLocaleDateString('de-DE')
-      if (orderDate !== columnFilters.date) {
-        return false
-      }
-    }
-
-    // Suchfilter
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase()
-      const customerName = order.invoiceAddress?.firstName && order.invoiceAddress?.lastName
-        ? `${order.invoiceAddress.firstName} ${order.invoiceAddress.lastName}`.toLowerCase()
-        : `kunde ${order.customerNumber}`.toLowerCase()
-
-      if (!order.orderNumber.toLowerCase().includes(searchLower) &&
-        !customerName.includes(searchLower) &&
-        !order.customerNumber.includes(searchLower)) {
-        return false
-      }
-    }
-
-    // Statusfilter
-    if (statusFilter !== 'all' && order.status !== statusFilter) {
-      return false
-    }
-
-    // Datumsfilter
-    if (dateFilter !== 'all') {
-      const orderDate = new Date(order.orderDate)
-      const today = new Date()
-
-      switch (dateFilter) {
-        case 'today':
-          if (orderDate.toDateString() !== today.toDateString()) return false
-          break
-        case 'week':
-          const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
-          if (orderDate < weekAgo) return false
-          break
-        case 'month':
-          const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
-          if (orderDate < monthAgo) return false
-          break
-      }
-    }
-
-    return true
+    if (!searchTerm) return true
+    const searchLower = searchTerm.toLowerCase()
+    return (
+      order.orderNumber.toLowerCase().includes(searchLower) ||
+      order.customerNumber.toLowerCase().includes(searchLower)
+    )
   })
 
-  const toggleOrderExpansion = (orderId: string) => {
-    const newExpanded = new Set(expandedOrders)
-
-    if (newExpanded.has(orderId)) {
-      newExpanded.delete(orderId)
-    } else {
-      newExpanded.add(orderId)
-      fetchTasksForOrder(orderId)
-    }
-
-    setExpandedOrders(newExpanded)
-  }
-
-  const getStatusColor = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'ORDER_ENTRY_IN_PROGRESS': return 'bg-yellow-100 text-yellow-800'
-      case 'ORDER_CONFIRMATION_PRINTED': return 'bg-blue-100 text-blue-800'
-      case 'INVOICED': return 'bg-green-100 text-green-800'
-      case 'SHIPPED': return 'bg-purple-100 text-purple-800'
-      case 'CANCELLED': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'ORDER_ENTRY_IN_PROGRESS': return 'badge badge-warning'
+      case 'ORDER_CONFIRMATION_PRINTED': return 'badge badge-info'
+      case 'INVOICED': return 'badge badge-success'
+      case 'SHIPPED': return 'badge badge-info'
+      case 'CANCELLED': return 'badge badge-error'
+      default: return 'badge'
     }
   }
 
@@ -264,380 +89,185 @@ export default function OrdersPage() {
     }
   }
 
-  const getCustomerName = (order: Order) => {
-    if (order.invoiceAddress?.firstName && order.invoiceAddress?.lastName) {
-      return `${order.invoiceAddress.firstName} ${order.invoiceAddress.lastName}`
-    }
-    return `Kunde ${order.customerNumber}`
-  }
-
   const formatAmount = (amount: string, currency: string) => {
     return parseFloat(amount).toLocaleString('de-DE', { minimumFractionDigits: 2 }) + ' ' + currency
   }
 
-  const clearFilters = () => {
-    setSearchTerm('')
-    setStatusFilter('all')
-    setDateFilter('all')
-    setColumnFilters({
-      status: 'all',
-      customer: 'all',
-      date: 'all'
-    })
+  if (status === 'loading') {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <RefreshCw className="h-8 w-8 animate-spin" />
+        </div>
+      </DashboardLayout>
+    )
   }
 
-  const activeFiltersCount = [
-    searchTerm ? 'search' : null,
-    statusFilter !== 'all' ? 'status' : null,
-    dateFilter !== 'all' ? 'date' : null,
-    columnFilters.status !== 'all' ? 'columnStatus' : null,
-    columnFilters.customer !== 'all' ? 'columnCustomer' : null,
-    columnFilters.date !== 'all' ? 'columnDate' : null
-  ].filter(Boolean).length
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Aufträge</h1>
-          <p className="text-muted-foreground">
-            {filteredOrders.length} von {orders.length} Aufträgen
-          </p>
-        </div>
-        {(userRole === 'admin' || userRole === 'manager') && (
-          <button className="btn btn-primary">
-            <Plus className="mr-2 h-4 w-4" />
-            Neuer Auftrag
-          </button>
-        )}
-      </div>
-
-      {/* Filter Section */}
-      <div className="bg-card rounded-lg border p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="btn btn-outline flex items-center"
-            >
-              <Filter className="mr-2 h-4 w-4" />
-              Filter
-              {activeFiltersCount > 0 && (
-                <span className="ml-2 bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs">
-                  {activeFiltersCount}
-                </span>
-              )}
+  if (status === 'unauthenticated') {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <p className="mb-4">Nicht eingeloggt</p>
+            <button onClick={() => router.push('/')} className="btn btn-primary">
+              Zum Login
             </button>
-            {activeFiltersCount > 0 && (
-              <button onClick={clearFilters} className="btn btn-ghost flex items-center">
-                <X className="mr-2 h-4 w-4" />
-                Filter löschen
-              </button>
-            )}
           </div>
         </div>
+      </DashboardLayout>
+    )
+  }
 
-        <div className="flex items-center space-x-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+  return (
+    <DashboardLayout>
+      <PageLayout>
+        {/* Page Header */}
+        <PageHeader 
+          title="Aufträge" 
+          subtitle={`${filteredOrders.length} von ${orders.length} Aufträgen`}
+        >
+          <button className="btn btn-outline">
+            <Filter className="h-4 w-4" />
+            Filter
+          </button>
+          <button className="btn btn-primary">
+            <Plus className="h-4 w-4" />
+            Neuer Auftrag
+          </button>
+        </PageHeader>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <KPICard
+            icon={<FileText className="h-4 w-4" />}
+            label="Gesamt"
+            value={orders.length}
+            description="Alle Aufträge"
+            color="info"
+          />
+          <KPICard
+            icon={<Clock className="h-4 w-4" />}
+            label="In Bearbeitung"
+            value={orders.filter(o => o.status === 'ORDER_ENTRY_IN_PROGRESS').length}
+            description="Noch offen"
+            color="warning"
+          />
+          <KPICard
+            icon={<CheckCircle className="h-4 w-4" />}
+            label="Abgeschlossen"
+            value={orders.filter(o => o.status === 'INVOICED').length}
+            description="Rechnung gestellt"
+            color="accent"
+          />
+          <KPICard
+            icon={<Euro className="h-4 w-4" />}
+            label="Gesamtwert"
+            value={orders.reduce((sum, o) => sum + parseFloat(o.netAmount || '0'), 0).toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €'}
+            description="Netto-Summe"
+            color="accent"
+          />
+        </div>
+
+        {/* Search */}
+        <Card>
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted" />
             <input
               type="search"
               placeholder="Aufträge suchen..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="input pl-8"
+              className="input pl-10"
             />
           </div>
-        </div>
+        </Card>
 
-        {showFilters && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t">
-            <div>
-              <label className="block text-sm font-medium mb-2">Status</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="input"
-              >
-                <option value="all">Alle Status</option>
-                <option value="ORDER_ENTRY_IN_PROGRESS">In Bearbeitung</option>
-                <option value="ORDER_CONFIRMATION_PRINTED">Auftragsbestätigung</option>
-                <option value="INVOICED">Rechnung gestellt</option>
-                <option value="SHIPPED">Versendet</option>
-                <option value="CANCELLED">Storniert</option>
-              </select>
+        {/* Loading State */}
+        {loading && (
+          <Card>
+            <div className="flex items-center justify-center p-8">
+              <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+              Lade Aufträge...
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Zeitraum</label>
-              <select
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="input"
-              >
-                <option value="all">Alle Zeitpunkte</option>
-                <option value="today">Heute</option>
-                <option value="week">Letzte 7 Tage</option>
-                <option value="month">Letzte 30 Tage</option>
-              </select>
-            </div>
+          </Card>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="card" style={{ borderColor: 'var(--color-error)', background: 'rgba(255, 71, 87, 0.1)' }}>
+            <strong>Fehler:</strong> {error}
           </div>
         )}
-      </div>
 
-      {loading && (
-        <div className="flex items-center justify-center rounded-md border bg-card p-8">
-          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-          Lade Aufträge...
-        </div>
-      )}
-
-      {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-red-800">
-          <strong>Fehler:</strong> {error}
-        </div>
-      )}
-
-      {!loading && !error && (
-        <div className="rounded-md border" ref={tableRef}>
-          <table className="w-full">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="h-12 px-4 text-left align-middle font-medium">Auftrags-Nr.</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">
-                  <div className="flex items-center space-x-2">
-                    <span>Kunde</span>
-                    <div className="relative">
-                      <button
-                        onClick={() => setActiveColumnFilter(activeColumnFilter === 'customer' ? null : 'customer')}
-                        className="p-1 hover:bg-muted rounded"
-                        title="Kunden filtern"
-                      >
-                        <ChevronDown className="h-3 w-3" />
-                      </button>
-                      {activeColumnFilter === 'customer' && (
-                        <div className="absolute top-full left-0 mt-1 bg-background border rounded-md shadow-lg z-10 min-w-48">
-                          <select
-                            value={columnFilters.customer}
-                            onChange={(e) => setColumnFilters(prev => ({ ...prev, customer: e.target.value }))}
-                            className="w-full p-2 border-0 bg-transparent"
-                            autoFocus
-                          >
-                            <option value="all">Alle Kunden</option>
-                            {uniqueCustomers.map(customer => (
-                              <option key={customer} value={customer}>
-                                {customer}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </th>
-                <th className="h-12 px-4 text-left align-middle font-medium">
-                  <div className="flex items-center space-x-2">
-                    <span>Status</span>
-                    <div className="relative">
-                      <button
-                        onClick={() => setActiveColumnFilter(activeColumnFilter === 'status' ? null : 'status')}
-                        className="p-1 hover:bg-muted rounded"
-                        title="Status filtern"
-                      >
-                        <ChevronDown className="h-3 w-3" />
-                      </button>
-                      {activeColumnFilter === 'status' && (
-                        <div className="absolute top-full left-0 mt-1 bg-background border rounded-md shadow-lg z-10 min-w-48">
-                          <select
-                            value={columnFilters.status}
-                            onChange={(e) => setColumnFilters(prev => ({ ...prev, status: e.target.value }))}
-                            className="w-full p-2 border-0 bg-transparent"
-                            autoFocus
-                          >
-                            <option value="all">Alle Status</option>
-                            {uniqueStatuses.map(status => (
-                              <option key={status} value={status}>
-                                {getStatusText(status)}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </th>
-                <th className="h-12 px-4 text-left align-middle font-medium">
-                  <div className="flex items-center space-x-2">
-                    <span>Auftragsdatum</span>
-                    <div className="relative">
-                      <button
-                        onClick={() => setActiveColumnFilter(activeColumnFilter === 'date' ? null : 'date')}
-                        className="p-1 hover:bg-muted rounded"
-                        title="Datum filtern"
-                      >
-                        <ChevronDown className="h-3 w-3" />
-                      </button>
-                      {activeColumnFilter === 'date' && (
-                        <div className="absolute top-full left-0 mt-1 bg-background border rounded-md shadow-lg z-10 min-w-40">
-                          <select
-                            value={columnFilters.date}
-                            onChange={(e) => setColumnFilters(prev => ({ ...prev, date: e.target.value }))}
-                            className="w-full p-2 border-0 bg-transparent"
-                            autoFocus
-                          >
-                            <option value="all">Alle Daten</option>
-                            {uniqueDates.map(date => (
-                              <option key={date} value={date}>
-                                {date}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Netto-Betrag</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Brutto-Betrag</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Positionen</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Tasks</th>
-                <th className="h-12 px-4 text-left align-middle font-medium"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredOrders.length === 0 ? (
+        {/* Orders Table */}
+        {!loading && !error && (
+          <div className="table-container">
+            <table className="table">
+              <thead>
                 <tr>
-                  <td colSpan={9} className="p-4 text-center text-muted-foreground">
-                    {orders.length === 0 ? 'Keine Aufträge gefunden.' : 'Keine Aufträge entsprechen den Filterkriterien.'}
-                  </td>
+                  <th>Auftrags-Nr.</th>
+                  <th>Kunde</th>
+                  <th>Status</th>
+                  <th>Auftragsdatum</th>
+                  <th>Netto-Betrag</th>
+                  <th>Brutto-Betrag</th>
+                  <th></th>
                 </tr>
-              ) : (
-                filteredOrders.map((order) => (
-                  <React.Fragment key={order.id}>
-                    <tr className="border-b transition-colors hover:bg-muted/50">
-                      <td className="p-4 align-middle font-medium">{order.orderNumber}</td>
-                      <td className="p-4 align-middle">
-                        <div>
-                          <div className="font-medium">{getCustomerName(order)}</div>
-                          <div className="text-sm text-muted-foreground">Nr. {order.customerNumber}</div>
-                          {order.invoiceAddress?.city && (
-                            <div className="text-sm text-muted-foreground">{order.invoiceAddress.city}</div>
-                          )}
-                        </div>
+              </thead>
+              <tbody>
+                {filteredOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center text-muted">
+                      {orders.length === 0 ? 'Keine Aufträge gefunden.' : 'Keine Aufträge entsprechen den Suchkriterien.'}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredOrders.map((order) => (
+                    <tr key={order.id}>
+                      <td className="font-medium">{order.orderNumber}</td>
+                      <td>
+                        <div className="font-medium">Kunde {order.customerNumber}</div>
+                        <div className="text-sm text-muted">ID: {order.customerId}</div>
                       </td>
-                      <td className="p-4 align-middle">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
+                      <td>
+                        <span className={getStatusBadge(order.status)}>
                           {getStatusText(order.status)}
                         </span>
                       </td>
-                      <td className="p-4 align-middle">
-                        <div className="flex items-center">
-                          <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-muted" />
                           {new Date(order.orderDate).toLocaleDateString('de-DE')}
                         </div>
                       </td>
-                      <td className="p-4 align-middle">
-                        <div className="flex items-center">
-                          <Euro className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <Euro className="h-4 w-4 text-muted" />
                           {formatAmount(order.netAmount, order.recordCurrencyName)}
                         </div>
                       </td>
-                      <td className="p-4 align-middle">
-                        <div className="flex items-center">
-                          <Euro className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <Euro className="h-4 w-4 text-muted" />
                           {formatAmount(order.grossAmount, order.recordCurrencyName)}
                         </div>
                       </td>
-                      <td className="p-4 align-middle">
-                        <div className="flex items-center">
-                          <FileText className="mr-2 h-4 w-4 text-muted-foreground" />
-                          {order.orderItems?.length || 0} Positionen
-                        </div>
-                      </td>
-                      <td className="p-4 align-middle">
-                        <div className="flex items-center">
-                          <ClipboardList className="mr-2 h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{tasksData[order.id]?.length || 0}</span>
-                          {tasksData[order.id] && tasksData[order.id].length > 0 && (
-                            <button
-                              onClick={() => toggleOrderExpansion(order.id)}
-                              className="ml-2 p-1 hover:bg-muted rounded"
-                            >
-                              {expandedOrders.has(order.id) ? (
-                                <ChevronUp className="h-4 w-4" />
-                              ) : (
-                                <ChevronDown className="h-4 w-4" />
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-4 align-middle text-right">
-                        <Link href={`/orders/${order.id}`} className="text-primary hover:underline">Details</Link>
+                      <td>
+                        <button 
+                          onClick={() => router.push(`/orders/${order.id}`)}
+                          className="btn btn-ghost text-sm"
+                        >
+                          Details
+                        </button>
                       </td>
                     </tr>
-                    
-                    {/* Tasks Zeile - nur anzeigen wenn expanded */}
-                    {expandedOrders.has(order.id) && (
-                      <tr>
-                        <td colSpan={9} className="p-0">
-                          <div className="bg-muted/30 border-b">
-                            <div className="p-4">
-                              <h4 className="font-semibold mb-3 flex items-center">
-                                <ClipboardList className="mr-2 h-4 w-4" />
-                                Tasks für Auftrag {order.orderNumber}
-                              </h4>
-                              
-                              {loadingTasks.has(order.id) ? (
-                                <div className="flex items-center justify-center py-4">
-                                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                                  Lade Tasks...
-                                </div>
-                              ) : tasksData[order.id]?.length > 0 ? (
-                                <div className="space-y-2">
-                                  {tasksData[order.id].map((task) => (
-                                    <div key={task.id} className="flex items-center justify-between p-3 bg-background rounded-md border">
-                                      <div className="flex items-center space-x-3">
-                                        <div>
-                                          <div className="font-medium">{task.name}</div>
-                                          {task.description && (
-                                            <div className="text-sm text-muted-foreground">{task.description}</div>
-                                          )}
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center space-x-2">
-                                        {task.dueDate && (
-                                          <div className="text-sm text-muted-foreground">
-                                            Fällig: {new Date(task.dueDate).toLocaleDateString('de-DE')}
-                                          </div>
-                                        )}
-                                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                          task.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                                          task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
-                                          'bg-yellow-100 text-yellow-800'
-                                        }`}>
-                                          {task.status || 'OPEN'}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div className="text-center py-4 text-muted-foreground">
-                                  Keine Tasks für diesen Auftrag gefunden.
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))
-              )} 
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </PageLayout>
+    </DashboardLayout>
   )
 }

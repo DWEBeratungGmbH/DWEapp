@@ -35,10 +35,10 @@ const mockOrder = {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const orderId = params.id
+    const { id: orderId } = await params
     
     // Für Demo-Zwecke geben wir immer die gleichen Mock-Daten zurück
     if (orderId === '1007') {
@@ -99,13 +99,13 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
+    const body = await request.json()
     const apiUrl = process.env.NEXT_PUBLIC_WECLAPP_API_URL
     const apiKey = process.env.NEXT_PUBLIC_WECLAPP_API_KEY
-    const id = params.id
-    const body = await request.json()
 
     if (!apiUrl || !apiKey) {
       return NextResponse.json(

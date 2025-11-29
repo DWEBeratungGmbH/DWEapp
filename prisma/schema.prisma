@@ -1,6 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
+// Better Auth 0.7.5 Compatible Schema
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,39 +9,220 @@ datasource db {
 }
 
 model User {
-  id              String    @id @default(cuid())
-  email           String    @unique
-  name            String
-  role            UserRole  @default(USER)
-  department      String?
-  weClappUserId   String?   @unique
-  isActive        Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified Boolean?  @default(false)
+  name          String?   // Legacy - für Kompatibilität
+  firstName     String?   // Vorname
+  lastName      String?   // Nachname
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   
-  // Relations
-  invitations     Invitation[] @relation("UserInvitations")
+  // Custom fields
+  role          String    @default("USER")
+  department    String?
+  weClappUserId String?
+  isActive      Boolean   @default(true)
+  
+  accounts      Account[]
+  sessions      Session[]
+  invitations    Invitation[]
   
   @@map("users")
 }
 
-model Invitation {
-  id          String   @id @default(cuid())
-  email       String
-  token       String   @unique
-  expiresAt   DateTime
-  isUsed      Boolean  @default(false)
-  createdAt   DateTime @default(now())
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  ext_expires_in    Int?
   
-  // Relations
-  invitedBy    User     @relation("UserInvitations", fields: [invitedById], references: [id])
-  invitedById  String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  
+  @@unique([identifier, value])
+  @@map("verifications")
+}
+
+model Invitation {
+  id        String    @id @default(cuid())
+  email     String
+  role      String
+  department String?
+  firstName String?   // Vorname des eingeladenen Benutzers
+  lastName  String?   // Nachname des eingeladenen Benutzers
+  name      String?   // Legacy - für Kompatibilität
+  weClappUserId String? // WeClapp Benutzer-ID
+  token     String    @unique
+  expiresAt DateTime
+  status    String    @default("PENDING") // PENDING, ACCEPTED, EXPIRED
+  userId    String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  user      User?     @relation(fields: [userId], references: [id])
   
   @@map("invitations")
 }
 
-enum UserRole {
-  USER
-  ADMIN
-  MANAGER
+model Role {
+  id          String   @id @default(cuid())
+  roleId      String   @unique // ADMIN, MANAGER, USER, oder benutzerdefinierte IDs
+  roleName    String   // Anzeigename: "Administrator", "Manager", "Benutzer", etc.
+  description String?
+  isSystem    Boolean  @default(false) // Systemrollen können nicht gelöscht werden
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  permissions RolePermission[]
+  dataScopes  RoleDataScope[]
+  
+  @@map("roles")
+}
+
+model RolePermission {
+  id          String   @id @default(cuid())
+  roleId      String
+  permissionId String  // z.B. "nav.dashboard", "action.users.create", etc.
+  createdAt   DateTime @default(now())
+  
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model RoleDataScope {
+  id         String   @id @default(cuid())
+  roleId     String
+  dataType   String   // "tasks", "projects", "users", etc.
+  scope      String   // "own", "assigned", "all", "department", etc.
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  
+  @@unique([roleId, dataType])
+  @@map("role_data_scopes")
+}
+
+// WeClapp Synchronisation Models
+model WeClappTask {
+  id                    String   @id // WeClapp Task ID
+  subject               String?
+  description           String?  @db.Text
+  identifier            String?
+  taskStatus            String   // NOT_STARTED, IN_PROGRESS, COMPLETED, etc.
+  taskPriority          String   // HIGH, MEDIUM, LOW
+  dateFrom              DateTime?
+  dateTo                DateTime?
+  plannedEffort         Int?
+  creatorUserId         String?
+  parentTaskId          String?
+  orderItemId           String?
+  customerId            String?
+  createdDate           DateTime
+  lastModifiedDate      DateTime
+  
+  // JSON fields für komplexe Daten
+  assignees             Json?    // Array von TaskAssignee
+  watchers              Json?    // Array von User IDs
+  entityReferences      Json?    // Array von EntityReference
+  taskLists             Json?    // Array von TaskList IDs
+  taskTopics            Json?    // Array von TaskTopic IDs
+  taskTypes             Json?    // Array von TaskType IDs
+  customAttributes      Json?    // Custom Attributes
+  
+  // Synchronisation
+  weClappLastModified   DateTime @default(now())
+  lastSyncAt            DateTime @default(now())
+  isActive              Boolean  @default(true)
+  
+  @@map("weclapp_tasks")
+}
+
+model WeClappOrder {
+  id                    String   @id // WeClapp Order ID
+  orderId               String?  // Order Number
+  orderStatus           String?
+  customerId            String?
+  totalAmount           Decimal?
+  currency              String?
+  createdDate           DateTime
+  lastModifiedDate      DateTime
+  
+  // JSON fields
+  billingAddress        Json?
+  shippingAddress       Json?
+  orderItems            Json?    // Array von OrderItem
+  customAttributes      Json?
+  
+  // Synchronisation
+  weClappLastModified   DateTime @default(now())
+  lastSyncAt            DateTime @default(now())
+  isActive              Boolean  @default(true)
+  
+  @@map("weclapp_orders")
+}
+
+model WeClappTimeEntry {
+  id                    String   @id // WeClapp TimeEntry ID
+  taskId                String?
+  userId                String?
+  description           String?
+  durationInSeconds     Int?
+  date                  DateTime?
+  createdDate           DateTime
+  lastModifiedDate      DateTime
+  
+  // Synchronisation
+  weClappLastModified   DateTime @default(now())
+  lastSyncAt            DateTime @default(now())
+  isActive              Boolean  @default(true)
+  
+  @@map("weclapp_time_entries")
+}
+
+model WeClappWebhookLog {
+  id                    String   @id @default(cuid())
+  eventType             String   // task.created, task.updated, etc.
+  entityId              String?  // WeClapp Entity ID
+  payload               Json     // Full Webhook Payload
+  processed             Boolean  @default(false)
+  error                 String?
+  processedAt           DateTime?
+  receivedAt            DateTime @default(now())
+  
+  @@map("weclapp_webhook_logs")
 }

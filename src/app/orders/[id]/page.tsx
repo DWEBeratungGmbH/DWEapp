@@ -50,9 +50,17 @@ interface OrderTask {
   orderId: string // orderId hinzugefügt
 }
 
-export default function OrderDetailPage({ params }: { params: { id: string } }) {
+export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
-  const { id } = params
+  const [id, setId] = useState<string>('')
+  
+  useEffect(() => {
+    const getParams = async () => {
+      const { id: paramId } = await params
+      setId(paramId)
+    }
+    getParams()
+  }, [])
   const [order, setOrder] = useState<OrderDetail | null>(null)
   const [tasks, setTasks] = useState<OrderTask[]>([])
   const [taskStats, setTaskStats] = useState<any>(null)
@@ -65,6 +73,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const [userId, setUserId] = useState<string>('')
 
   useEffect(() => {
+    if (!id) return
+    
     const fetchOrder = async () => {
       try {
         setLoading(true)
