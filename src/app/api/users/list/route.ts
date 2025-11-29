@@ -1,30 +1,39 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-
-export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    // Hole alle User
-    const users = await prisma.user.findMany({
-      orderBy: { createdAt: 'desc' }
+    const users = await (prisma as any).user.findMany({
+      where: {
+        isActive: true
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        department: true,
+        weClappUserId: true
+      },
+      orderBy: {
+        email: 'asc'
+      }
     })
 
-    // Hole alle offenen Einladungen
-    const invitations = await prisma.invitation.findMany({
-      where: { isUsed: false },
-      include: { invitedBy: true },
-      orderBy: { createdAt: 'desc' }
+    return NextResponse.json({
+      success: true,
+      users: users
     })
 
-    return NextResponse.json({ 
-      users, 
-      invitations 
-    })
   } catch (error: any) {
-    console.error('Error fetching local users:', error)
+    console.error('Fehler beim Laden der Benutzerliste:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch users', details: error.message },
+      { 
+        error: 'Benutzerliste konnte nicht geladen werden',
+        details: error.message 
+      },
       { status: 500 }
     )
   }

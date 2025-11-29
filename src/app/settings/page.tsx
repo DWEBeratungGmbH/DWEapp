@@ -14,10 +14,10 @@ export default function SettingsPage() {
   ]
 
   return (
-    <div>
-      <h1 className="text-3xl font-semibold tracking-tight">Einstellungen</h1>
+    <div className="space-y-6 p-6">
+      <h1 className="page-title">Einstellungen</h1>
 
-      <div className="mt-6 flex space-x-1 rounded-lg bg-muted p-1">
+      <div className="flex space-x-1 rounded-lg bg-muted p-1">
         {tabs.map((tab) => {
           const Icon = tab.icon
           return (
@@ -26,8 +26,8 @@ export default function SettingsPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center space-x-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                 activeTab === tab.id
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-card text-primary shadow-sm'
+                  : 'text-muted hover:text-primary'
               }`}
             >
               <Icon className="h-4 w-4" />
@@ -37,10 +37,10 @@ export default function SettingsPage() {
         })}
       </div>
 
-      <div className="mt-6 rounded-md border bg-card p-6">
+      <div className="card">
         {activeTab === 'profile' && (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Profil-Einstellungen</h2>
+            <h2 className="card-title">Profil-Einstellungen</h2>
             <div>
               <label className="text-sm font-medium">Name</label>
               <input type="text" className="input mt-1" defaultValue="Max Mustermann" />
@@ -55,8 +55,8 @@ export default function SettingsPage() {
 
         {activeTab === 'notifications' && (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Benachrichtigungen</h2>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="card-title">Benachrichtigungen</h2>
+            <p className="text-sm text-muted">
               Legen Sie fest, welche Benachrichtigungen Sie erhalten möchten.
             </p>
             <div className="space-y-3">
@@ -79,7 +79,7 @@ export default function SettingsPage() {
 
         {activeTab === 'security' && (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Sicherheit</h2>
+            <h2 className="card-title">Sicherheit</h2>
             <div>
               <label className="text-sm font-medium">Aktuelles Passwort</label>
               <input type="password" className="input mt-1" />
@@ -98,11 +98,11 @@ export default function SettingsPage() {
 
         {activeTab === 'data' && (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Daten & API</h2>
+            <h2 className="card-title">Daten & API</h2>
             <div>
               <label className="text-sm font-medium">WeClapp API-Schlüssel</label>
               <input type="password" className="input mt-1" defaultValue="sk-1234567890abcdef" />
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 text-xs text-muted">
                 Ihr API-Schlüssel wird sicher gespeichert und niemals geteilt.
               </p>
             </div>

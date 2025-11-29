@@ -5,22 +5,22 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('Start seeding...')
 
-  // Admin-User erstellen
-  const adminUser = await prisma.user.upsert({
+  // Create admin user
+  const admin = await prisma.user.upsert({
     where: { email: 'admin@dwe.de' },
     update: {},
     create: {
       email: 'admin@dwe.de',
       name: 'Admin User',
+      firstName: 'Admin',
+      lastName: 'User',
       role: 'ADMIN',
-      department: 'IT',
-      weClappUserId: 'admin-weclapp-id',
-      isActive: true
-    }
+      isActive: true,
+      emailVerified: true,
+    },
   })
 
-  console.log('Admin user created:', adminUser)
-
+  console.log('Created admin user:', admin)
   console.log('Seeding finished.')
 }
 

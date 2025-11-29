@@ -1,89 +1,171 @@
 "use client"
 
+import { useState, useEffect } from 'react'
+import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useSession } from 'next-auth/react'
-import { cn } from '@/lib/utils'
 import { 
-  LayoutDashboard, 
+  Home, 
   Users, 
-  ClipboardList, 
+  Calendar, 
+  Settings, 
+  FileText, 
+  Building, 
+  Folder, 
+  MessageCircle,
   CheckSquare,
-  Settings,
-  Clock,
-  BarChart3,
-  UserCircle,
-  Filter,
-  Shield
+  Menu,
+  X,
+  LogOut,
+  User
 } from 'lucide-react'
+import DarkModeToggle from '@/components/dark-mode-toggle'
+
+interface SidebarItem {
+  title: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  requiredRole?: string
+}
 
 export function Sidebar() {
+  const { data: session, status } = useSession()
+  const user = session?.user
   const pathname = usePathname()
-  const { data: session } = useSession()
-  const userRole = session?.user?.role?.toLowerCase() || 'employee'
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
-  // Rollen-basierte Navigation
-  const getNavigation = () => {
-    const baseNav = [
-      { name: 'Dashboard', href: '/', icon: LayoutDashboard, roles: ['admin', 'manager', 'project_manager', 'employee'] },
-      { name: 'Meine Aufgaben', href: '/tasks?view=my', icon: CheckSquare, roles: ['admin', 'manager', 'project_manager', 'employee'] },
-      { name: 'Alle Aufgaben', href: '/tasks?view=all', icon: CheckSquare, roles: ['admin', 'manager', 'project_manager'] },
-      { name: 'Aufträge', href: '/orders', icon: ClipboardList, roles: ['admin', 'manager', 'project_manager', 'employee'] },
-      { name: 'Benutzer', href: '/users', icon: UserCircle, roles: ['admin', 'manager'] },
-      { name: 'Zeit-Buchung', href: '/time', icon: Clock, roles: ['admin', 'manager', 'project_manager', 'employee'] },
-      { name: 'Team', href: '/team', icon: Users, roles: ['admin', 'manager'] },
-      { name: 'Kunden', href: '/customers', icon: Users, roles: ['admin', 'manager'] },
-      { name: 'Statistik', href: '/reports', icon: BarChart3, roles: ['admin', 'manager'] },
-      { name: 'Admin-Einstellungen', href: '/admin', icon: Shield, roles: ['admin'] },
-      { name: 'Einstellungen', href: '/settings', icon: Settings, roles: ['admin'] },
+  // Navigation items based on user role
+  const getSidebarItems = (): SidebarItem[] => {
+    const userRole = user?.role || 'USER'
+    
+    const commonItems = [
+      {
+        title: 'Dashboard',
+        href: '/dashboard',
+        icon: Home,
+      },
+      {
+        title: 'Aufgaben',
+        href: '/tasks',
+        icon: CheckSquare,
+      },
+      {
+        title: 'Aufträge',
+        href: '/orders',
+        icon: FileText,
+      },
     ]
 
-    return baseNav.filter(item => item.roles.includes(userRole))
+    const adminItems = [
+      ...commonItems,
+      {
+        title: 'Administration',
+        href: '/admin',
+        icon: Settings,
+        requiredRole: 'ADMIN',
+      },
+    ]
+
+    const userItems = [
+      ...commonItems,
+      {
+        title: 'Profil',
+        href: '/profile',
+        icon: User,
+      },
+    ]
+
+    return userRole === 'ADMIN' ? adminItems : userItems
   }
 
-  const navigation = getNavigation()
+  const sidebarItems = getSidebarItems()
 
-  return (
-    <div className="flex h-full w-64 flex-col bg-card">
-      <div className="flex h-16 shrink-0 items-center px-6 border-b">
-        <h1 className="text-xl font-semibold text-foreground">Weclapp Manager</h1>
-      </div>
-      
-      {/* User Info */}
-      <div className="px-4 py-3 border-b">
-        <div className="flex items-center gap-3">
-          <UserCircle className="h-8 w-8 text-muted-foreground" />
-          <div>
-            <div className="text-sm font-medium">{session?.user?.name || 'Benutzer'}</div>
-            <div className="text-xs text-muted-foreground capitalize">{userRole}</div>
+  if (status === 'loading') {
+    return (
+      <div className="sidebar">
+        <div className="animate-pulse space-y-4 p-4">
+          <div className="h-8 bg-muted rounded"></div>
+          <div className="space-y-2">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-8 bg-muted rounded"></div>
+            ))}
           </div>
         </div>
       </div>
+    )
+  }
 
-      <nav className="flex flex-1 flex-col px-4 py-4">
-        <ul role="list" className="flex flex-1 flex-col gap-y-2">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href || 
-                            (item.href === '/tasks' && pathname.startsWith('/tasks'))
+  return (
+    <div className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+      {/* Header */}
+      <div className="sidebar-header">
+        <div className="flex items-center justify-between">
+          {!isCollapsed && (
+            <h2 className="sidebar-brand">DWE Manager</h2>
+          )}
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="icon-button"
+          >
+            {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="sidebar-nav">
+        <div className="space-y-2">
+          {sidebarItems.map((item) => {
+            const Icon = item.icon
+            const isActive = pathname === item.href
+            
             return (
-              <li key={item.name}>
-                <Link
-                  href={item.href}
-                  className={cn(
-                    isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                    'group flex gap-x-3 rounded-md p-3 text-sm font-semibold leading-6 transition-colors'
-                  )}
-                >
-                  <item.icon className="h-6 w-6 shrink-0" aria-hidden="true" />
-                  {item.name}
-                </Link>
-              </li>
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`nav-item ${isActive ? 'active' : ''}`}
+              >
+                <Icon className="nav-icon" />
+                {!isCollapsed && <span>{item.title}</span>}
+              </Link>
             )
           })}
-        </ul>
+        </div>
       </nav>
+
+      {/* User Profile Section */}
+      <div className="sidebar-footer">
+        <div className="space-y-4">
+          {/* User Profile */}
+          <div className="user-profile">
+            <div className="user-avatar">
+              {user?.name?.charAt(0).toUpperCase() || 'U'}
+            </div>
+            {!isCollapsed && (
+              <div className="user-info">
+                <div className="user-name">
+                  {user?.name || 'User'}
+                </div>
+                <div className="user-role">
+                  {user?.email}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Dark Mode Toggle */}
+          <DarkModeToggle />
+          
+          {/* Logout Button */}
+          <button
+            onClick={() => signOut({ callbackUrl: '/' })}
+            className="btn btn-secondary w-full"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            {!isCollapsed && 'Abmelden'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

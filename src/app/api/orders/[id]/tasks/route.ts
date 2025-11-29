@@ -23,12 +23,12 @@ interface WeClappTask {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: orderId } = await params
     const apiUrl = process.env.NEXT_PUBLIC_WECLAPP_API_URL
     const apiKey = process.env.NEXT_PUBLIC_WECLAPP_API_KEY
-    const orderId = params.id
 
     if (!apiUrl || !apiKey) {
       return NextResponse.json(
@@ -113,13 +113,13 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: orderId } = await params
+    const body = await request.json()
     const apiUrl = process.env.NEXT_PUBLIC_WECLAPP_API_URL
     const apiKey = process.env.NEXT_PUBLIC_WECLAPP_API_KEY
-    const orderId = params.id
-    const body = await request.json()
 
     if (!apiUrl || !apiKey) {
       return NextResponse.json(

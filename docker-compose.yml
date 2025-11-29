@@ -5,13 +5,15 @@ services:
     image: postgres:16
     restart: unless-stopped
     environment:
-      - POSTGRES_DB=weclapp_manager
-      - POSTGRES_USER=weclapp
-      - POSTGRES_PASSWORD=ein_sicheres_passwort
+      - POSTGRES_DB=dweapp
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres123
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
       - app-network
+    ports:
+      - "5432:5432"  # Expose port for local development
 
   weclapp-manager:
     image: weclapp-manager:latest
@@ -19,7 +21,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://weclapp:ein_sicheres_passwort@db:5432/weclapp_manager
+      - DATABASE_URL=postgresql://postgres:postgres123@db:5432/dweapp
       - NODE_TLS_REJECT_UNAUTHORIZED=0
       - NEXT_PUBLIC_WECLAPP_API_URL=https://dwe.weclapp.com/webapp/api/v2
       - NEXT_PUBLIC_WECLAPP_API_KEY=${WECLAPP_API_KEY}
@@ -35,6 +37,8 @@ services:
     restart: unless-stopped
     networks:
       - app-network
+    depends_on:
+      - db
 
   nginx:
     image: nginx:alpine
