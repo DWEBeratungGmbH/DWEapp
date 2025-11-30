@@ -57,5 +57,5 @@ EXPOSE 3000
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
-# Run init script then start app
-CMD ["sh", "-c", "chmod +x scripts/init-db.sh && ./scripts/init-db.sh && node server.js"]
+# Start app
+CMD ["node", "server.js"]
