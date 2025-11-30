@@ -1,5 +1,6 @@
 # Use Node.js 18 Alpine as base image
 FROM node:18-alpine AS base
+RUN apk add --no-cache openssl openssl-dev
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -8,7 +9,7 @@ WORKDIR /app
 
 # Copy package files
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Rebuild the source code only when needed
 FROM base AS builder
