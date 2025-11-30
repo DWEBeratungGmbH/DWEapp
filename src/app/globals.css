@@ -2,8 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* DWEapp Design-System Import */
+/* DWEapp Design-System Imports */
 @import '../styles/design-system.css';
+@import '../styles/components.css';
+@import '../styles/layout.css';
+@import '../styles/utilities.css';
 
 @layer base {
   * {

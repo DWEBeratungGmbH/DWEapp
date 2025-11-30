@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Loader2, CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { MicrosoftLogo } from '@/components/ui'
 
 export default function InvitePage() {
   const params = useParams()
@@ -72,7 +73,7 @@ export default function InvitePage() {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
+      <div className="page-centered">
         <div className="text-center">
           <Loader2 className="h-10 w-10 animate-spin mx-auto mb-4 text-accent" />
           <p className="text-secondary">Einladung wird geprüft...</p>
@@ -83,7 +84,7 @@ export default function InvitePage() {
 
   if (status === 'error') {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
+      <div className="page-centered">
         <div className="card max-w-md w-full text-center">
           <div className="badge-error p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="h-8 w-8" />
@@ -105,7 +106,7 @@ export default function InvitePage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4" style={{ background: 'var(--bg-primary)' }}>
+    <div className="page-centered">
       <div className="card max-w-md w-full">
         <div className="text-center">
           <div className="badge-info p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
@@ -138,12 +139,7 @@ export default function InvitePage() {
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
               <>
-                <svg className="w-5 h-5" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M10.5 0L0 0V10.5H10.5V0Z" fill="#F25022"/>
-                  <path d="M21 0L10.5 0V10.5H21V0Z" fill="#7FBA00"/>
-                  <path d="M10.5 10.5L0 10.5V21H10.5V10.5Z" fill="#00A4EF"/>
-                  <path d="M21 10.5L10.5 10.5V21H21V10.5Z" fill="#FFB900"/>
-                </svg>
+                <MicrosoftLogo />
                 Mit Microsoft anmelden
               </>
             )}

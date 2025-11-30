@@ -34,21 +34,21 @@ function SignInContent() {
 
   if (session) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
+      <div className="page-centered">
         <Loader2 className="h-8 w-8 animate-spin text-accent" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
+    <div className="page-centered">
       <div className="card max-w-md w-full">
         <div className="text-center mb-8">
           <h2 className="text-2xl font-bold">
-            Anmelden bei WeClapp Manager
+            Anmelden bei DWE App
           </h2>
           <p className="mt-2 text-sm text-secondary">
-            Melden Sie sich mit Ihrem Microsoft-Konto an
+            Melde dich mit deinem Microsoft-Konto an
           </p>
         </div>
 
@@ -78,7 +78,7 @@ function SignInContent() {
 export default function SignInPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
+      <div className="page-centered">
         <Loader2 className="h-8 w-8 animate-spin text-accent" />
       </div>
     }>

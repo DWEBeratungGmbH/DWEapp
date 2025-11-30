@@ -20,7 +20,7 @@ export function Tabs({ tabs, activeTab, onTabChange, className = '' }: TabsProps
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200 dark:border-gray-700">
+      <div className="border-b border-[var(--border)]">
         <nav className="-mb-px flex space-x-8">
           {tabs.map((tab) => (
             <button
@@ -29,7 +29,7 @@ export function Tabs({ tabs, activeTab, onTabChange, className = '' }: TabsProps
               className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === tab.id
                   ? 'border-accent text-accent'
-                  : 'border-transparent text-muted hover:text-secondary hover:border-gray-300'
+                  : 'border-transparent text-muted hover:text-secondary hover:border-[var(--border)]'
               }`}
               style={{
                 borderBottomColor: activeTab === tab.id ? 'var(--accent)' : 'transparent',

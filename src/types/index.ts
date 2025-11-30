@@ -22,16 +22,41 @@ export interface User {
 }
 
 export interface Project extends WeClappProject {
-  tasks?: Task[];
+  tasks?: WeClappTask[];
   progress?: number;
   teamMembers?: User[];
 }
 
-export interface Task extends WeClappTask {
-  assignee?: User;
-  comments?: Comment[];
-  attachments?: Attachment[];
-  timeEntries?: TimeEntry[];
+// Export Task types
+export * from './task'
+
+// Export WeClappTask for API compatibility
+export interface WeClappTask {
+  id: string
+  subject?: string
+  description?: string
+  identifier?: string
+  taskStatus: string
+  taskPriority: string
+  dateFrom?: string
+  dateTo?: string
+  plannedEffort?: number
+  creatorUserId?: string
+  parentTaskId?: string
+  orderItemId?: string
+  customerId?: string
+  createdDate: string
+  lastModifiedDate: string
+  assignees?: any
+  watchers?: any
+  entityReferences?: any
+  taskLists?: any
+  taskTopics?: any
+  taskTypes?: any
+  customAttributes?: any
+  weClappLastModified: string
+  lastSyncAt: string
+  isActive: boolean
 }
 
 export interface TaskTemplate extends WeClappTaskTemplate {
@@ -119,3 +144,4 @@ export interface WeClappTaskTemplate {
   defaultPriority: string;
   taskType: string;
 }
+

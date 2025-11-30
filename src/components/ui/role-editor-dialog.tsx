@@ -132,7 +132,7 @@ export function RoleEditorDialog({ role, isOpen, onClose, onSave }: RoleEditorDi
           </Card>
 
           {/* Tabs */}
-          <div className="border-b border-gray-200 dark:border-gray-700">
+          <div className="border-b border-[var(--border)]">
             <nav className="-mb-px flex space-x-8">
               <button
                 onClick={() => setActiveTab('permissions')}

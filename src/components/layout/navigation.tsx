@@ -54,10 +54,10 @@ export function Navigation() {
       </div>
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-white border-r">
+      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-[var(--bg-secondary)] border-r border-[var(--border)]">
         <div className="flex flex-col flex-grow pt-5 pb-4 overflow-y-auto">
           <div className="flex items-center flex-shrink-0 px-4">
-            <h1 className="text-xl font-bold text-gray-900">WeClapp Manager</h1>
+            <h1 className="text-xl font-bold">DWE App</h1>
           </div>
           
           <AuthenticatedTemplate>
@@ -71,12 +71,12 @@ export function Navigation() {
                     className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
                       isActive
                         ? "bg-primary text-primary-foreground"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        : "text-secondary hover:bg-[var(--bg-tertiary)]"
                     }`}
                   >
                     <item.icon
                       className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                        isActive ? "text-primary-foreground" : "text-gray-400 group-hover:text-gray-500"
+                        isActive ? "text-primary-foreground" : "text-muted"
                       }`}
                       aria-hidden="true"
                     />
@@ -88,18 +88,18 @@ export function Navigation() {
           </AuthenticatedTemplate>
 
           <AuthenticatedTemplate>
-            <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
+            <div className="flex-shrink-0 flex border-t border-[var(--border)] p-4">
               <div className="flex items-center w-full">
                 <div className="flex-1">
                   <div className="flex items-center">
-                    <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
-                      <User className="h-4 w-4 text-gray-600" />
+                    <div className="w-8 h-8 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center">
+                      <User className="h-4 w-4 text-secondary" />
                     </div>
                     <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-700">
+                      <p className="text-sm font-medium text-primary">
                         {user?.name || "Benutzer"}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-muted">
                         {user?.username || "user@example.com"}
                       </p>
                     </div>
@@ -122,7 +122,7 @@ export function Navigation() {
           }`}
         >
           <div className="fixed inset-0 bg-black bg-opacity-25" onClick={() => setIsMobileMenuOpen(false)} />
-          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white">
+          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-[var(--bg-secondary)]">
             <div className="absolute top-0 right-0 -mr-12 pt-2">
               <Button
                 variant="ghost"
@@ -135,7 +135,7 @@ export function Navigation() {
             </div>
             <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
               <div className="flex items-center flex-shrink-0 px-4">
-                <h1 className="text-xl font-bold text-gray-900">WeClapp Manager</h1>
+                <h1 className="text-xl font-bold">DWE App</h1>
               </div>
               <nav className="mt-8 px-2 space-y-1">
                 {navigation.map((item) => {
@@ -148,12 +148,12 @@ export function Navigation() {
                       className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
                         isActive
                           ? "bg-primary text-primary-foreground"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                          : "text-secondary hover:bg-[var(--bg-tertiary)]"
                       }`}
                     >
                       <item.icon
                         className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                          isActive ? "text-primary-foreground" : "text-gray-400 group-hover:text-gray-500"
+                          isActive ? "text-primary-foreground" : "text-muted"
                         }`}
                         aria-hidden="true"
                       />
@@ -163,18 +163,18 @@ export function Navigation() {
                 })}
               </nav>
             </div>
-            <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
+            <div className="flex-shrink-0 flex border-t border-[var(--border)] p-4">
               <div className="flex items-center w-full">
                 <div className="flex-1">
                   <div className="flex items-center">
-                    <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
-                      <User className="h-4 w-4 text-gray-600" />
+                    <div className="w-8 h-8 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center">
+                      <User className="h-4 w-4 text-secondary" />
                     </div>
                     <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-700">
+                      <p className="text-sm font-medium text-primary">
                         {user?.name || "Benutzer"}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-muted">
                         {user?.username || "user@example.com"}
                       </p>
                     </div>
