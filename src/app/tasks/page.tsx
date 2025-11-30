@@ -21,8 +21,13 @@ import {
   ListTree,
   Filter,
   Package,
-  X
+  X,
+  ChevronDown as ChevronIcon,
+  User as UserIcon,
+  Briefcase,
+  Shield
 } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import Link from 'next/link'
 import DashboardLayout from '@/components/dashboard-layout'
 import { Input } from '@/components/ui/input'
@@ -289,6 +294,7 @@ export default function TasksPage() {
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all')
   const [userContext, setUserContext] = useState<any>(null)
+  const [currentView, setCurrentView] = useState<'USER' | 'MANAGER' | 'ADMIN'>('ADMIN')
 
   // Daten laden
   const loadTasks = useCallback(async () => {
@@ -308,6 +314,11 @@ export default function TasksPage() {
       }
       if (debouncedSearch) {
         params.set('q', debouncedSearch)
+      }
+      
+      // View-Filter hinzufügen
+      if (currentView === 'USER') {
+        params.set('view', 'mine')
       }
 
       const url = `/api/tasks?${params.toString()}`
@@ -341,10 +352,10 @@ export default function TasksPage() {
     return () => clearTimeout(timeoutId)
   }, [searchInput])
 
-  // Trigger Reload wenn Filter sich ändern
+  // Trigger Reload wenn Filter oder View sich ändern
   useEffect(() => {
     loadTasks()
-  }, [loadTasks])
+  }, [loadTasks, currentView])
 
   // Bei Änderung des Assignee-Filters neu laden
   const handleAssigneeChange = (userId: string) => {
@@ -369,14 +380,43 @@ export default function TasksPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Aufgaben</h1>
+            <h1 className="text-2xl font-bold">
+              {currentView === 'USER' ? 'Mein Bereich' : currentView === 'MANAGER' ? 'Manager Bereich' : 'Admin Bereich'}
+            </h1>
             <p className="text-muted-foreground">
-              {userContext?.weClappConnected 
-                ? `${stats?.total || 0} Aufgaben aus WeClapp` 
-                : 'WeClapp nicht verbunden'}
+              {currentView === 'USER' 
+                ? `${stats?.total || 0} meine Aufgaben`
+                : `${stats?.total || 0} Aufgaben ${currentView === 'MANAGER' ? 'im Team' : 'insgesamt'}`
+              }
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-3">
+            {/* View Dropdown */}
+            <Select value={currentView} onValueChange={(value: 'USER' | 'MANAGER' | 'ADMIN') => setCurrentView(value)}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="USER">
+                  <div className="flex items-center gap-2">
+                    <UserIcon className="w-4 h-4" />
+                    USER
+                  </div>
+                </SelectItem>
+                <SelectItem value="MANAGER">
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="w-4 h-4" />
+                    MANAGER
+                  </div>
+                </SelectItem>
+                <SelectItem value="ADMIN">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4" />
+                    ADMIN
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
             <button
               onClick={() => loadTasks()}
               disabled={loading}
