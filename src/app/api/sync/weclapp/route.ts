@@ -82,70 +82,45 @@ async function initialWeClappSync() {
 }
 
 async function syncUsers() {
-  console.log('👥 Synchronisiere Benutzer...')
+  console.log('👥 Synchronisiere WeClapp-Benutzer...')
   
   const weClappUsers = await fetchWeClappUsers()
   
+  // WeClapp-Benutzer in weclapp_users speichern (NICHT in users!)
   for (const user of weClappUsers) {
-    // Prüfen ob Benutzer bereits existiert
-    const existingUser = await prisma.user.findFirst({
-      where: { weClappUserId: user.id },
+    await prisma.weClappUser.upsert({
+      where: { id: user.id },
+      update: {
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        username: user.username,
+        active: user.active ?? true,
+        lastModifiedDate: user.lastModifiedDate ? new Date(user.lastModifiedDate) : null,
+        lastSyncAt: new Date(),
+      },
+      create: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        username: user.username,
+        active: user.active ?? true,
+        createdDate: user.createdDate ? new Date(user.createdDate) : null,
+        lastModifiedDate: user.lastModifiedDate ? new Date(user.lastModifiedDate) : null,
+        lastSyncAt: new Date(),
+      },
     })
-    
-    if (existingUser) {
-      // Bestehenden Benutzer aktualisieren
-      await prisma.user.update({
-        where: { id: existingUser.id },
-        data: {
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          weClappUserId: user.id,
-          isActive: user.active,
-        },
-      })
-      console.log(`  ✅ Benutzer ${user.firstName} ${user.lastName} aktualisiert`)
-    } else {
-      // Neuen Benutzer anlegen (mit Einladung)
-      await prisma.user.create({
-        data: {
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          weClappUserId: user.id,
-          isActive: user.active,
-          role: 'USER', // Standardrolle
-        },
-      })
-      console.log(`  ✅ Neuer Benutzer ${user.firstName} ${user.lastName} angelegt`)
-    }
   }
+  
+  console.log(`  ✅ ${weClappUsers.length} WeClapp-Benutzer synchronisiert`)
 }
 
 async function syncTasks() {
   console.log('📋 Synchronisiere Aufgaben...')
   
-  // Alle Aufgaben von WeClapp holen (paginiert)
-  let allTasks: any[] = []
-  let page = 1
-  let hasMore = true
-  
-  while (hasMore) {
-    const response = await fetchWeClappTasks({
-      limit: 1000, // Große Seite für initiale Sync
-    })
-    
-    if (response.length === 0) {
-      hasMore = false
-    } else {
-      allTasks = allTasks.concat(response)
-      page++
-      
-      if (response.length < 1000) {
-        hasMore = false
-      }
-    }
-  }
+  // Alle Aufgaben von WeClapp holen (OHNE Pagination - WeClapp API limitiert auf 1000)
+  const allTasks = await fetchWeClappTasks({ limit: 1000 })
   
   console.log(`  📊 ${allTasks.length} Aufgaben von WeClapp geladen`)
   

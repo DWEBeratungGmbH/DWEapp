@@ -1,18 +1,57 @@
-name: Deploy to Hetzner
+name: Build & Deploy
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
-  deploy:
+  build-and-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Extract metadata for Docker
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=sha,prefix=
+          type=raw,value=latest
+          
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    
+    steps:
     - name: Setup SSH
       run: |
         mkdir -p ~/.ssh
@@ -20,34 +59,27 @@ jobs:
         chmod 600 ~/.ssh/hetzner_key
         ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
         
-    - name: Deploy to Hetzner
+    - name: Deploy to Server
       run: |
-        ssh -i ~/.ssh/hetzner_key deploy@${{ secrets.SERVER_IP }} << 'EOF'
+        ssh -i ~/.ssh/hetzner_key root@${{ secrets.SERVER_IP }} << 'EOF'
           cd /opt/weclapp-manager
           
-          # Git pull
-          git pull origin main
+          # Pull new image
+          docker-compose pull
           
-          # Docker rebuild
-          docker-compose down --remove-orphans
-          docker system prune -f
+          # Restart with new image
+          docker-compose up -d
           
-          # Update docker-compose if needed (to fix KeyError: 'ContainerConfig')
-          if docker-compose --version | grep -q "1.29"; then
-              sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-              sudo chmod +x /usr/local/bin/docker-compose
-          fi
-          
-          docker build -t weclapp-manager:latest .
-          docker-compose up -d --force-recreate
+          # Cleanup old images
+          docker image prune -f
           
           echo "✅ Deployment completed!"
         EOF
         
     - name: Health Check
       run: |
-        sleep 30
-        curl -f http://${{ secrets.SERVER_IP }}:3000 || curl -f http://${{ secrets.SERVER_IP }} || echo "Warning: Health check failed but deployment may still be successful"
+        sleep 15
+        curl -k -f https://${{ secrets.SERVER_IP }} || echo "Warning: Health check failed"
         
-    - name: Notify success
-      run: echo "🚀 Deployment successful! App is live at http://${{ secrets.SERVER_IP }}"
+    - name: Success
+      run: echo "🚀 Deployed to https://${{ secrets.SERVER_IP }}"

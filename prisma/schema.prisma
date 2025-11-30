@@ -138,6 +138,24 @@ model RoleDataScope {
 }
 
 // WeClapp Synchronisation Models
+
+// WeClapp Benutzer (Referenzdaten aus WeClapp - NICHT App-Benutzer!)
+model WeClappUser {
+  id                    String   @id // WeClapp User ID
+  email                 String?
+  firstName             String?
+  lastName              String?
+  username              String?
+  active                Boolean  @default(true)
+  createdDate           DateTime?
+  lastModifiedDate      DateTime?
+  
+  // Synchronisation
+  lastSyncAt            DateTime @default(now())
+  
+  @@map("weclapp_users")
+}
+
 model WeClappTask {
   id                    String   @id // WeClapp Task ID
   subject               String?
