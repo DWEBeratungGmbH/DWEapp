@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
     const assigneeUserId = searchParams.get('assigneeUserId')
     const search = searchParams.get('q')
     const limit = parseInt(searchParams.get('limit') || '200')
+    const view = searchParams.get('view') || 'all' // 'all' | 'mine'
     
     // Benutzer-Kontext aus Session holen (vereinfacht für Test)
     const userRole = 'ADMIN' // TODO: Aus Session lesen
@@ -47,6 +48,14 @@ export async function GET(request: NextRequest) {
     // Basis-Query für Aufgaben
     const whereClause: any = {
       isActive: true,
+    }
+    
+    // View Filter: Nur meine Aufgaben
+    if (view === 'mine' && weClappUserId) {
+      whereClause.assignees = {
+        path: '$[*].userId',
+        string_contains: weClappUserId,
+      }
     }
     
     // Status-Filter
