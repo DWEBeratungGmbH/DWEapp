@@ -7,7 +7,7 @@ import { Filter, X } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import type { WeClappUser } from '@/types/task'
+import type { WeClappUser } from '@/types'
 
 interface TaskFiltersProps {
   searchInput: string
