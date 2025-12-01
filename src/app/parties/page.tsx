@@ -5,6 +5,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useMemo } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 import { 
   Building, 
   RefreshCw, 
@@ -18,7 +19,13 @@ import DashboardLayout from '@/components/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
+import { 
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue
+} from '@/components/ui/select'
 import { DataTable } from '@/components/ui/data-table'
 import { useWeClappParties } from '@/hooks/useWeClappData'
 import type { WeClappParty } from '@/types'
@@ -59,111 +66,126 @@ export default function PartiesPage() {
   }, [parties])
 
   // Tabellen-Spalten
-  const columns = useMemo(() => [
+  const columns = useMemo<ColumnDef<WeClappParty>[]>(() => [
     {
       id: 'name',
       header: 'Name',
-      cell: (party: WeClappParty) => (
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[var(--bg-secondary)] rounded-full flex items-center justify-center">
-            {party.partyType === 'ORGANIZATION' ? (
-              <Building className="w-4 h-4 text-[var(--muted)]" />
-            ) : (
-              <Users className="w-4 h-4 text-[var(--muted)]" />
-            )}
-          </div>
-          <div>
-            <div className="font-medium">{party.displayName}</div>
-            <div className="text-sm text-[var(--muted)]">
-              {party.partyType === 'ORGANIZATION' ? 'Organisation' : 'Person'}
+      cell: ({ row }) => {
+        const party = row.original
+        return (
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-[var(--bg-secondary)] rounded-full flex items-center justify-center">
+              {party.partyType === 'ORGANIZATION' ? (
+                <Building className="w-4 h-4 text-[var(--muted)]" />
+              ) : (
+                <Users className="w-4 h-4 text-[var(--muted)]" />
+              )}
+            </div>
+            <div>
+              <div className="font-medium">{party.displayName}</div>
+              <div className="text-sm text-[var(--muted)]">
+                {party.partyType === 'ORGANIZATION' ? 'Organisation' : 'Person'}
+              </div>
             </div>
           </div>
-        </div>
-      )
+        )
+      }
     },
     {
       id: 'contact',
       header: 'Kontakt',
-      cell: (party: WeClappParty) => (
-        <div className="space-y-1">
-          {party.email && (
-            <div className="flex items-center gap-2">
-              <Mail className="w-4 h-4 text-[var(--muted)]" />
-              <span>{party.email}</span>
-            </div>
-          )}
-          {party.phone && (
-            <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4 text-[var(--muted)]" />
-              <span>{party.phone}</span>
-            </div>
-          )}
-          {party.website && (
-            <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-[var(--muted)]" />
-              <span className="text-sm">{party.website}</span>
-            </div>
-          )}
-        </div>
-      )
+      cell: ({ row }) => {
+        const party = row.original
+        return (
+          <div className="space-y-1">
+            {party.email && (
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4 text-[var(--muted)]" />
+                <span>{party.email}</span>
+              </div>
+            )}
+            {party.phone && (
+              <div className="flex items-center gap-2">
+                <Phone className="w-4 h-4 text-[var(--muted)]" />
+                <span>{party.phone}</span>
+              </div>
+            )}
+            {party.website && (
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-[var(--muted)]" />
+                <span className="text-sm">{party.website}</span>
+              </div>
+            )}
+          </div>
+        )
+      }
     },
     {
       id: 'type',
       header: 'Typ',
-      cell: (party: WeClappParty) => (
-        <div className="flex flex-wrap gap-1">
-          {party.customer && (
-            <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
-              Kunde
-            </span>
-          )}
-          {party.supplier && (
-            <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
-              Lieferant
-            </span>
-          )}
-          {party.customerNumber && (
-            <span className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded">
-              {party.customerNumber}
-            </span>
-          )}
-        </div>
-      )
+      cell: ({ row }) => {
+        const party = row.original
+        return (
+          <div className="flex flex-wrap gap-1">
+            {party.customer && (
+              <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                Kunde
+              </span>
+            )}
+            {party.supplier && (
+              <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
+                Lieferant
+              </span>
+            )}
+            {party.customerNumber && (
+              <span className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded">
+                {party.customerNumber}
+              </span>
+            )}
+          </div>
+        )
+      }
     },
     {
       id: 'stats',
       header: 'Aktivität',
-      cell: (party: WeClappParty) => (
-        <div className="space-y-1">
-          {party.stats.tasksCount > 0 && (
-            <div className="flex items-center gap-2 text-sm">
-              <Package className="w-4 h-4 text-[var(--muted)]" />
-              <span>{party.stats.tasksCount} Aufgaben</span>
-            </div>
-          )}
-          {party.stats.ordersCount > 0 && (
-            <div className="flex items-center gap-2 text-sm">
-              <Package className="w-4 h-4 text-[var(--muted)]" />
-              <span>{party.stats.ordersCount} Aufträge</span>
-            </div>
-          )}
-          {party.stats.timeEntriesCount > 0 && (
-            <div className="flex items-center gap-2 text-sm">
-              <Package className="w-4 h-4 text-[var(--muted)]" />
-              <span>{party.stats.timeEntriesCount} Zeiteinträge</span>
-            </div>
-          )}
-        </div>
-      )
+      cell: ({ row }) => {
+        const party = row.original
+        return (
+          <div className="space-y-1">
+            {party.stats.tasksCount > 0 && (
+              <div className="flex items-center gap-2 text-sm">
+                <Package className="w-4 h-4 text-[var(--muted)]" />
+                <span>{party.stats.tasksCount} Aufgaben</span>
+              </div>
+            )}
+            {party.stats.ordersCount > 0 && (
+              <div className="flex items-center gap-2 text-sm">
+                <Package className="w-4 h-4 text-[var(--muted)]" />
+                <span>{party.stats.ordersCount} Aufträge</span>
+              </div>
+            )}
+            {party.stats.timeEntriesCount > 0 && (
+              <div className="flex items-center gap-2 text-sm">
+                <Package className="w-4 h-4 text-[var(--muted)]" />
+                <span>{party.stats.timeEntriesCount} Zeiteinträge</span>
+              </div>
+            )}
+          </div>
+        )
+      }
     },
     {
       id: 'lastSync',
       header: 'Letzter Sync',
-      cell: (party: WeClappParty) => (
-        <span className="text-sm text-[var(--muted)]">
-          {party.lastSyncAt ? new Date(party.lastSyncAt).toLocaleDateString('de-DE') : 'Nie'}
-        </span>
-      )
+      cell: ({ row }) => {
+        const party = row.original
+        return (
+          <span className="text-sm text-[var(--muted)]">
+            {party.lastSyncAt ? new Date(party.lastSyncAt).toLocaleDateString('de-DE') : 'Nie'}
+          </span>
+        )
+      }
     }
   ], [])
 
@@ -267,23 +289,25 @@ export default function PartiesPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Select
-            value={partyType}
-            onValueChange={setPartyType}
-            placeholder="Typ..."
-          >
-            <option value="">Alle Typen</option>
-            <option value="ORGANIZATION">Organisation</option>
-            <option value="PERSON">Person</option>
+          <Select value={partyType} onValueChange={setPartyType}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Typ" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Alle Typen</SelectItem>
+              <SelectItem value="ORGANIZATION">Organisation</SelectItem>
+              <SelectItem value="PERSON">Person</SelectItem>
+            </SelectContent>
           </Select>
-          <Select
-            value={customer}
-            onValueChange={setCustomer}
-            placeholder="Rolle..."
-          >
-            <option value="">Alle Rollen</option>
-            <option value="true">Nur Kunden</option>
-            <option value="false">Keine Kunden</option>
+          <Select value={customer} onValueChange={setCustomer}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Rolle" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Alle Rollen</SelectItem>
+              <SelectItem value="true">Nur Kunden</SelectItem>
+              <SelectItem value="false">Keine Kunden</SelectItem>
+            </SelectContent>
           </Select>
         </div>
 
@@ -293,15 +317,23 @@ export default function PartiesPage() {
             <CardTitle>Parteienliste</CardTitle>
           </CardHeader>
           <CardContent>
-            <DataTable
-              data={parties}
-              columns={columns}
-              loading={loading}
-              error={error}
-              pagination={pagination}
-              onNextPage={fetchNext}
-              onPreviousPage={fetchPrevious}
-            />
+            {loading ? (
+              <div className="py-10 text-center text-sm text-muted">
+                Lade Parteien...
+              </div>
+            ) : error ? (
+              <div className="py-10 text-center text-sm text-error">
+                {error}
+              </div>
+            ) : (
+              <DataTable
+                data={parties}
+                columns={columns}
+                pagination={pagination}
+                onNextPage={fetchNext}
+                onPreviousPage={fetchPrevious}
+              />
+            )}
           </CardContent>
         </Card>
       </div>
