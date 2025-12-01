@@ -98,7 +98,7 @@ export function TaskHierarchyListV2({ tasks, orders, users, loading, error }: Ta
           subtitle: mainTask.identifier,
           status: mainTask.taskStatus,
           priority: mainTask.taskPriority,
-          dateTo: mainTask.dateTo,
+          dateTo: mainTask.dateTo?.toString(),
           assignees: mainTask.assignees,
           hasChildren: false,
           children: [],
@@ -119,7 +119,7 @@ export function TaskHierarchyListV2({ tasks, orders, users, loading, error }: Ta
             subtitle: subTask.identifier,
             status: subTask.taskStatus,
             priority: subTask.taskPriority,
-            dateTo: subTask.dateTo,
+            dateTo: subTask.dateTo?.toString(),
             assignees: subTask.assignees,
             hasChildren: false,
             children: []
