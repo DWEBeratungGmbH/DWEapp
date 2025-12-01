@@ -148,25 +148,32 @@ export async function POST(request: NextRequest) {
 
     const inviteUrl = `${process.env.NEXTAUTH_URL}/invite/${token}`
 
-    // E-Mail an intern@dwe-beratung.de senden (Benachrichtigung an Admin)
-    const adminEmailHtml = `
+    // E-Mail direkt an den Mitarbeiter senden
+    const userEmailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333;">Neue Benutzereinladung</h2>
-        <p>Eine neue Benutzereinladung wurde erstellt:</p>
+        <h2 style="color: #333;">Willkommen beim WeClapp Manager</h2>
+        <p>Hallo ${weClappUser?.firstName || email.split('@')[0]},</p>
+        <p>Sie wurden zum WeClapp Manager eingeladen!</p>
         <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p><strong>Eingeladen von:</strong> ${session.user.name || session.user.email}</p>
-          <p><strong>E-Mail:</strong> ${email}</p>
-          <p><strong>Rolle:</strong> ${role === 'admin' ? 'Administrator' : role === 'manager' ? 'Manager' : 'Benutzer'}</p>
+          <p><strong>Ihre Rolle:</strong> ${role === 'admin' ? 'Administrator' : role === 'manager' ? 'Manager' : 'Benutzer'}</p>
           ${department ? `<p><strong>Abteilung:</strong> ${department}</p>` : ''}
-          ${weClappUser ? `<p><strong>WeClapp Benutzer:</strong> ${weClappUser.firstName} ${weClappUser.lastName}</p>` : ''}
+          ${weClappUser ? `<p><strong>WeClapp Integration:</strong> Aktiv</p>` : ''}
         </div>
-        <p><strong>Einladungs-Link:</strong> <a href="${inviteUrl}">${inviteUrl}</a></p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${inviteUrl}" style="background: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block;">
+            Einladung annehmen
+          </a>
+        </div>
+        <p style="color: #666; font-size: 14px;">Oder klicken Sie hier: <a href="${inviteUrl}">${inviteUrl}</a></p>
         <p style="color: #666; font-size: 14px;">Dieser Link ist 7 Tage gültig.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+        <p style="color: #999; font-size: 12px;">Dies ist eine automatische E-Mail vom WeClapp Manager.</p>
       </div>
     `
 
-    // E-Mail über Microsoft Graph API senden
-    const emailResponse = await fetch('https://graph.microsoft.com/v1.0/users/intern@dwe-beratung.de/sendMail', {
+    // E-Mail über Microsoft Graph API an den Mitarbeiter senden
+    const emailResponse = await fetch(`https://graph.microsoft.com/v1.0/users/${email}/sendMail`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -174,15 +181,15 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         message: {
-          subject: `Neue Benutzereinladung: ${email}`,
+          subject: 'Einladung zum WeClapp Manager',
           body: {
             contentType: 'HTML',
-            content: adminEmailHtml
+            content: userEmailHtml
           },
           toRecipients: [
             {
               emailAddress: {
-                address: 'intern@dwe-beratung.de'
+                address: email
               }
             }
           ]
@@ -198,7 +205,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Einladung erfolgreich erstellt und E-Mail an intern@dwe-beratung.de gesendet',
+      message: 'Einladung erfolgreich erstellt und E-Mail an den Mitarbeiter gesendet',
       invitation: {
         id: invitation.id,
         email: invitation.email,

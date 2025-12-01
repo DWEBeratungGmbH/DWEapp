@@ -67,8 +67,8 @@
 [data-theme="dark"] {
   /* ===== PRIMÄR (3) - Text ===== */
   --primary: #FCFCF9;
-  --secondary: rgba(252, 252, 249, 0.7);
-  --muted: rgba(252, 252, 249, 0.6);
+  --secondary: rgba(252, 252, 249, 0.600);
+  --muted: rgba(252, 252, 249, 0.4);
   
   /* ===== SEKUNDÄR (2) - Hintergründe ===== */
   --bg-primary: #1F2121;

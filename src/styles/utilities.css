@@ -12,11 +12,21 @@
 .text-error { color: var(--error); }
 .text-info { color: var(--info); }
 
+/* Accent Color (for inputs) */
+.accent-accent { accent-color: var(--accent); }
+
 /* Background Colors */
 .bg-transparent { background: transparent !important; }
 .bg-card { background: var(--bg-secondary); }
 .bg-muted { background: var(--bg-tertiary); }
 .bg-hover { background: var(--accent-muted); }
+.bg-bg-tertiary { background: var(--bg-tertiary); }
+.bg-bg-secondary { background: var(--bg-secondary); }
+.bg-accent { background: var(--accent); }
+.bg-accent-muted { background: var(--accent-muted); }
+.bg-error { background: var(--error); }
+.bg-warning { background: var(--warning); }
+.bg-info { background: var(--info); }
 
 /* Spacing */
 .mt-2 { margin-top: var(--space-2); }
@@ -76,6 +86,11 @@
 
 /* Border */
 .border { border: 1px solid var(--border); }
+.border-b { border-bottom: 1px solid var(--border); }
+.border-accent { border-color: var(--accent); }
+.border-error { border-color: var(--error); }
+.border-warning { border-color: var(--warning); }
+.border-info { border-color: var(--info); }
 
 /* Spacing Utilities */
 .space-y-2 > * + * { margin-top: var(--space-2); }

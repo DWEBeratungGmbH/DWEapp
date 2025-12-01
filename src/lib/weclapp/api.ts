@@ -196,6 +196,175 @@ export class WeClappAPI {
     const response = await this.request<{ result: WeClappUser }>('/user/currentUser')
     return response.result
   }
+  
+  // ----------------------------------------
+  // PARTIES (Kunden, Lieferanten, Kontakte)
+  // ----------------------------------------
+  
+  /**
+   * Alle Parties laden
+   */
+  async getParties(filter?: { customer?: boolean; supplier?: boolean }): Promise<any[]> {
+    const params: Record<string, any> = { pageSize: 1000 }
+    if (filter?.customer !== undefined) params['customer-eq'] = filter.customer
+    if (filter?.supplier !== undefined) params['supplier-eq'] = filter.supplier
+    
+    const query = this.buildQueryString(params)
+    const response = await this.request<WeClappResponse<any>>(`/party${query}`)
+    return response.result
+  }
+  
+  /**
+   * Einzelne Party laden
+   */
+  async getParty(partyId: string): Promise<any> {
+    const response = await this.request<any>(`/party/id/${partyId}`)
+    return response
+  }
+  
+  /**
+   * Party erstellen
+   */
+  async createParty(party: any): Promise<any> {
+    const response = await this.request<any>('/party', {
+      method: 'POST',
+      body: JSON.stringify(party),
+    })
+    return response
+  }
+  
+  /**
+   * Party aktualisieren
+   */
+  async updateParty(partyId: string, updates: any): Promise<any> {
+    const response = await this.request<any>(`/party/id/${partyId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    })
+    return response
+  }
+  
+  /**
+   * Party löschen
+   */
+  async deleteParty(partyId: string): Promise<void> {
+    await this.request(`/party/id/${partyId}`, {
+      method: 'DELETE',
+    })
+  }
+  
+  // ----------------------------------------
+  // SALES ORDERS (Aufträge)
+  // ----------------------------------------
+  
+  /**
+   * Alle Aufträge laden
+   */
+  async getSalesOrders(filter?: { status?: string }): Promise<any[]> {
+    const params: Record<string, any> = { pageSize: 1000 }
+    if (filter?.status) params['status-eq'] = filter.status
+    
+    const query = this.buildQueryString(params)
+    const response = await this.request<WeClappResponse<any>>(`/salesOrder${query}`)
+    return response.result
+  }
+  
+  /**
+   * Einzelnen Auftrag laden
+   */
+  async getSalesOrder(orderId: string): Promise<any> {
+    const response = await this.request<any>(`/salesOrder/id/${orderId}`)
+    return response
+  }
+  
+  /**
+   * Auftrag erstellen
+   */
+  async createSalesOrder(order: any): Promise<any> {
+    const response = await this.request<any>('/salesOrder', {
+      method: 'POST',
+      body: JSON.stringify(order),
+    })
+    return response
+  }
+  
+  /**
+   * Auftrag aktualisieren
+   */
+  async updateSalesOrder(orderId: string, updates: any): Promise<any> {
+    const response = await this.request<any>(`/salesOrder/id/${orderId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    })
+    return response
+  }
+  
+  /**
+   * Auftrag löschen
+   */
+  async deleteSalesOrder(orderId: string): Promise<void> {
+    await this.request(`/salesOrder/id/${orderId}`, {
+      method: 'DELETE',
+    })
+  }
+  
+  // ----------------------------------------
+  // TIME RECORDS (Zeiteinträge)
+  // ----------------------------------------
+  
+  /**
+   * Alle Zeiteinträge laden
+   */
+  async getTimeRecords(filter?: { userId?: string; taskId?: string; startDate?: string; endDate?: string }): Promise<any[]> {
+    const params: Record<string, any> = { pageSize: 1000 }
+    if (filter?.userId) params['userId-eq'] = filter.userId
+    if (filter?.taskId) params['taskId-eq'] = filter.taskId
+    if (filter?.startDate) params['startDate-ge'] = filter.startDate
+    if (filter?.endDate) params['startDate-le'] = filter.endDate
+    
+    const query = this.buildQueryString(params)
+    const response = await this.request<WeClappResponse<any>>(`/timeRecord${query}`)
+    return response.result
+  }
+  
+  /**
+   * Einzelnen Zeiteintrag laden
+   */
+  async getTimeRecord(timeRecordId: string): Promise<any> {
+    const response = await this.request<any>(`/timeRecord/id/${timeRecordId}`)
+    return response
+  }
+  
+  /**
+   * Zeiteintrag erstellen
+   */
+  async createTimeRecord(timeRecord: any): Promise<any> {
+    const response = await this.request<any>('/timeRecord', {
+      method: 'POST',
+      body: JSON.stringify(timeRecord),
+    })
+    return response
+  }
+  
+  /**
+   * Zeiteintrag aktualisieren
+   */
+  async updateTimeRecord(timeRecordId: string, updates: any): Promise<any> {
+    const response = await this.request<any>(`/timeRecord/id/${timeRecordId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    })
+    return response
+  }
+  
+  /**
+   * Zeiteintrag löschen
+   */
+  async deleteTimeRecord(timeRecordId: string): Promise<void> {
+    await this.request(`/timeRecord/id/${timeRecordId}`, {
+      method: 'DELETE',
+    })
+  }
 }
 
 // ========================================

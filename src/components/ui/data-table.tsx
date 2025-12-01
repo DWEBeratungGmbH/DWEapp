@@ -20,6 +20,7 @@ import {
 import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tooltip } from '@/components/ui/tooltip'
+import { Button } from '@/components/ui/button'
 
 // Ausgelagerte Subkomponenten
 import { DataTableHeader } from './data-table-toolbar'
@@ -42,6 +43,14 @@ interface DataTableProps<TData, TValue> {
   columnVisibility?: Record<string, boolean>
   onColumnVisibilityChange?: (visibility: Record<string, boolean>) => void
   onColumnsChange?: (columns: ColumnDef<TData, TValue>[]) => void
+  pagination?: {
+    page: number
+    limit: number
+    total: number
+    pages: number
+  }
+  onNextPage?: () => void
+  onPreviousPage?: () => void
 }
 
 // ===== STATUS ICON COMPONENT (mit Tooltip) =====
@@ -69,6 +78,9 @@ export function DataTable<TData, TValue>({
   columnVisibility = {},
   onColumnVisibilityChange,
   onColumnsChange,
+  pagination: serverPagination,
+  onNextPage,
+  onPreviousPage
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -99,6 +111,8 @@ export function DataTable<TData, TValue>({
       pagination,
       columnVisibility: columnVisibilityState,
     },
+    manualPagination: !!serverPagination,
+    pageCount: serverPagination ? serverPagination.pages : undefined,
   })
 
   return (
@@ -117,7 +131,33 @@ export function DataTable<TData, TValue>({
           columns={columns} 
           filterableColumns={filterableColumns}
         />
-        <DataTablePagination table={table} />
+        {serverPagination ? (
+          <div className="flex items-center justify-between px-2 py-4">
+            <div className="flex-1 text-sm text-muted-foreground">
+              Seite {serverPagination.page} von {serverPagination.pages} ({serverPagination.total} Einträge)
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onPreviousPage}
+                disabled={serverPagination.page <= 1}
+              >
+                Zurück
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onNextPage}
+                disabled={serverPagination.page >= serverPagination.pages}
+              >
+                Weiter
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <DataTablePagination table={table} />
+        )}
       </CardContent>
     </Card>
   )

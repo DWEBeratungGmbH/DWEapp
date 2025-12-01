@@ -27,7 +27,7 @@ module.exports = {
           foreground: "#1F2121",
         },
         secondary: {
-          DEFAULT: "var(--bg-tertiary)",
+          DEFAULT: "var(--secondary)",
           foreground: "var(--primary)",
         },
         destructive: {
@@ -35,7 +35,7 @@ module.exports = {
           foreground: "#FFFFFF",
         },
         muted: {
-          DEFAULT: "var(--bg-tertiary)",
+          DEFAULT: "var(--muted)",
           foreground: "var(--muted)",
         },
         accent: {

@@ -5,73 +5,50 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
 jobs:
-  build-and-push:
+  deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    
-    outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
       with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        node-version: '20'
+        cache: 'npm'
         
-    - name: Extract metadata for Docker
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-        tags: |
-          type=sha,prefix=
-          type=raw,value=latest
-          
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    
-    steps:
     - name: Setup SSH
       run: |
         mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/hetzner_key
-        chmod 600 ~/.ssh/hetzner_key
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
         ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
         
     - name: Deploy to Server
       run: |
-        ssh -i ~/.ssh/hetzner_key root@${{ secrets.SERVER_IP }} << 'EOF'
+        ssh -i ~/.ssh/deploy_key root@${{ secrets.SERVER_IP }} << 'EOF'
           cd /opt/weclapp-manager
           
-          # Pull new image
-          docker-compose pull
+          # Stop service
+          systemctl stop weclapp-manager || true
           
-          # Restart with new image
-          docker-compose up -d
+          # Pull latest changes
+          git pull origin main
           
-          # Cleanup old images
-          docker image prune -f
+          # Install dependencies with legacy peer deps
+          npm ci --production --legacy-peer-deps
+          
+          # Build application
+          npm run build
+          
+          # Generate Prisma client
+          npx prisma generate
+          
+          # Start service
+          systemctl start weclapp-manager
+          systemctl enable weclapp-manager
           
           echo "✅ Deployment completed!"
         EOF

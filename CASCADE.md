@@ -1,6 +1,6 @@
 # CASCADE - Entwicklungsregeln & Richtlinien
 
-## 📚 **WICHTIG: Dokumentation verwenden!**
+## 📚 **WICHTIG: DWEapp.md ist die zentrale Wahrheitsquelle!**
 
 **🔔 IMMER ZUERST in `DWEapp.md` nachschauen:**
 - **Architektur & Ordnerstruktur** → Wo ist welche Datei?
@@ -8,6 +8,13 @@
 - **API Integration** → Wie funktioniert WeClapp?
 - **Version History** → Was wurde wann geändert?
 - **Datenbank Setup** → Wie verbinde ich mich?
+
+**📋 Alle Dokumentationen im Überblick:**
+- **`DWEapp.md`** → Hauptdokumentation (Architektur, Komponenten, API)
+- **`DATABASE.md`** → Datenbankschema & Sync-Dokumentation
+- **`CHANGELOG.md`** → Änderungsprotokoll mit Rollback-Anweisungen
+- **`CASCADE.md`** → Diese Datei (Detaillierte Entwicklungsregeln)
+- **`.cascade-rules.md`** → AI Assistant Regeln
 
 **📋 DOKUMENTATIONS-REGELN:**
 - **Immer `DWEapp.md` aktualisieren** bei Änderungen

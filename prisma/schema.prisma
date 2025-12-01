@@ -22,12 +22,17 @@ model User {
   // Custom fields
   role          String    @default("USER")
   department    String?
-  weClappUserId String?
+  weClappUserId String?   @unique // Optional: Verknüpfung zu WeClapp (1:1)
   isActive      Boolean   @default(true)
   
+  // Auth-Relationen
   accounts      Account[]
   sessions      Session[]
-  invitations    Invitation[]
+  invitations   Invitation[]
+  
+  // WeClapp-Verknüpfung (optional, 1:1)
+  // Nicht jeder App-User hat einen WeClapp-Account
+  weClappUser   WeClappUser? @relation("AppUserToWeClappUser", fields: [weClappUserId], references: [id], onDelete: SetNull)
   
   @@map("users")
 }
@@ -139,19 +144,91 @@ model RoleDataScope {
 
 // WeClapp Synchronisation Models
 
-// WeClapp Benutzer (Referenzdaten aus WeClapp - NICHT App-Benutzer!)
+// WeClapp Party (Kunden, Lieferanten, Kontakte - Stammdaten)
+model WeClappParty {
+  id                    String   @id // WeClapp Party ID
+  partyType             String?  // ORGANIZATION, PERSON
+  company               String?  // Firmenname
+  company2              String?  // Firmenname Zusatz
+  firstName             String?  // Vorname (bei Personen)
+  lastName              String?  // Nachname (bei Personen)
+  middleName            String?  // Zweiter Vorname
+  salutation            String?  // Anrede
+  email                 String?  // E-Mail (geschäftlich)
+  emailHome             String?  // E-Mail (privat)
+  phone                 String?  // Telefon
+  mobilePhone1          String?  // Mobil
+  fax                   String?  // Fax
+  website               String?  // Website
+  birthDate             DateTime? // Geburtsdatum
+  
+  // Kunde-spezifische Felder
+  customer              Boolean  @default(false) // Ist Kunde?
+  customerNumber        String?  // Kundennummer
+  customerBlocked       Boolean  @default(false) // Gesperrt?
+  customerCreditLimit   Decimal? // Kreditlimit
+  
+  // Lieferant-spezifische Felder
+  supplier              Boolean  @default(false) // Ist Lieferant?
+  supplierNumber        String?  // Lieferantennummer
+  
+  // Adressen & Kontakte
+  primaryAddressId      String?  // Hauptadresse
+  invoiceAddressId      String?  // Rechnungsadresse
+  deliveryAddressId     String?  // Lieferadresse
+  
+  // JSON fields
+  addresses             Json?    // Array von Adressen
+  bankAccounts          Json?    // Array von Bankverbindungen
+  contacts              Json?    // Array von Kontakt-IDs
+  tags                  Json?    // Array von Tags
+  customAttributes      Json?    // Custom Attributes
+  
+  createdDate           DateTime?
+  lastModifiedDate      DateTime?
+  
+  // Synchronisation
+  lastSyncAt            DateTime @default(now())
+  isActive              Boolean  @default(true)
+  
+  // Relationen
+  tasks                 WeClappTask[]      @relation("PartyTasks")
+  orders                WeClappOrder[]     @relation("PartyOrders")
+  timeEntries           WeClappTimeEntry[] @relation("PartyTimeEntries")
+  
+  @@map("weclapp_parties")
+}
+
+// WeClapp Benutzer (Referenzdaten aus WeClapp - NICHT zwingend App-Benutzer!)
 model WeClappUser {
   id                    String   @id // WeClapp User ID
   email                 String?
   firstName             String?
   lastName              String?
   username              String?
-  active                Boolean  @default(true)
+  title                 String?   // Titel (Dr., etc.)
+  birthDate             DateTime? // Geburtsdatum
+  phoneNumber           String?   // Telefonnummer
+  mobilePhoneNumber     String?   // Mobilnummer
+  faxNumber             String?   // Faxnummer
+  imageId               String?   // Profilbild-ID
+  status                String    @default("ACTIVE") // ACTIVE, NOT_ACTIVE, DEPARTURE
+  userRoles             Json?     // Array von UserRole IDs
+  licenses              Json?     // Array von Lizenzen
+  customAttributes      Json?     // Custom Attributes
   createdDate           DateTime?
   lastModifiedDate      DateTime?
   
   // Synchronisation
   lastSyncAt            DateTime @default(now())
+  
+  // Relationen zu WeClapp-Daten
+  createdTasks          WeClappTask[]      @relation("CreatorUser")
+  assignedTimeEntries   WeClappTimeEntry[] @relation("TimeEntryUser")
+  
+  // Optionale Verknüpfung zu App-User (1:1)
+  // Nicht jeder WeClapp-User ist ein App-User!
+  appUser               User?              @relation("AppUserToWeClappUser")
   
   @@map("weclapp_users")
 }
@@ -160,21 +237,32 @@ model WeClappTask {
   id                    String   @id // WeClapp Task ID
   subject               String?
   description           String?  @db.Text
-  identifier            String?
-  taskStatus            String   // NOT_STARTED, IN_PROGRESS, COMPLETED, etc.
+  identifier            String?  // Task-Nummer (z.B. T-00001)
+  taskStatus            String   // NOT_STARTED, IN_PROGRESS, COMPLETED, DEFERRED, WAITING_ON_OTHERS
   taskPriority          String   // HIGH, MEDIUM, LOW
+  taskVisibilityType    String?  // Sichtbarkeit
   dateFrom              DateTime?
   dateTo                DateTime?
-  plannedEffort         Int?
-  creatorUserId         String?
-  parentTaskId          String?
+  plannedEffort         Int?     // Geplanter Aufwand in Minuten
+  positionNumber        Int?     // Positionsnummer
+  creatorUserId         String?  // FK → WeClappUser
+  parentTaskId          String?  // FK → WeClappTask (selbstreferenzierend)
+  previousTaskId        String?  // FK → WeClappTask (Vorgänger)
   orderItemId           String?
-  customerId            String?
+  customerId            String?  // FK → WeClappParty
+  articleId             String?  // Verknüpfter Artikel
+  ticketId              String?  // Verknüpftes Ticket
+  calendarEventId       String?  // Verknüpfter Kalendereintrag
+  userOfLastStatusChangeId String? // Letzter Status-Änderer
+  allowOverBooking      Boolean  @default(false)
+  allowTimeBooking      Boolean  @default(true)
+  billableStatus        Boolean? // Abrechenbar?
+  invoicingStatus       String?  // Abrechnungsstatus
   createdDate           DateTime
   lastModifiedDate      DateTime
   
   // JSON fields für komplexe Daten
-  assignees             Json?    // Array von TaskAssignee
+  assignees             Json?    // Array von TaskAssignee {id, plannedEffort, userId}
   watchers              Json?    // Array von User IDs
   entityReferences      Json?    // Array von EntityReference
   taskLists             Json?    // Array von TaskList IDs
@@ -187,47 +275,95 @@ model WeClappTask {
   lastSyncAt            DateTime @default(now())
   isActive              Boolean  @default(true)
   
+  // Relationen
+  creator               WeClappUser?  @relation("CreatorUser", fields: [creatorUserId], references: [id], onDelete: SetNull)
+  customer              WeClappParty? @relation("PartyTasks", fields: [customerId], references: [id], onDelete: SetNull)
+  parentTask            WeClappTask?  @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: SetNull)
+  childTasks            WeClappTask[] @relation("TaskHierarchy")
+  previousTask          WeClappTask?  @relation("TaskSequence", fields: [previousTaskId], references: [id], onDelete: SetNull)
+  nextTasks             WeClappTask[] @relation("TaskSequence")
+  timeEntries           WeClappTimeEntry[] @relation("TaskTimeEntries")
+  
   @@map("weclapp_tasks")
 }
 
 model WeClappOrder {
   id                    String   @id // WeClapp Order ID
-  orderId               String?  // Order Number
-  orderStatus           String?
-  customerId            String?
-  totalAmount           Decimal?
-  currency              String?
+  orderNumber           String?  // Auftragsnummer (z.B. AB-00001)
+  orderNumberAtCustomer String?  // Bestellnummer beim Kunden
+  orderStatus           String?  // Status (ORDER_ENTRY, ORDER_CONFIRMATION, etc.)
+  orderDate             DateTime? // Auftragsdatum
+  customerId            String?  // FK → WeClappParty (Kunde)
+  invoiceRecipientId    String?  // Rechnungsempfänger (Party ID)
+  totalAmount           Decimal? // Gesamtbetrag
+  currency              String?  // Währung (EUR, USD, etc.)
+  note                  String?  // Notiz
+  invoiced              Boolean  @default(false) // Abgerechnet?
+  paid                  Boolean  @default(false) // Bezahlt?
+  shipped               Boolean  @default(false) // Versendet?
+  servicesFinished      Boolean  @default(false) // Dienstleistungen abgeschlossen?
+  projectModeActive     Boolean  @default(false) // Projektmodus aktiv?
+  warehouseId           String?  // Lager ID
+  quotationId           String?  // Angebots-ID
+  plannedProjectStartDate DateTime? // Geplanter Projektstart
+  plannedProjectEndDate DateTime?   // Geplantes Projektende
   createdDate           DateTime
   lastModifiedDate      DateTime
   
   // JSON fields
-  billingAddress        Json?
-  shippingAddress       Json?
-  orderItems            Json?    // Array von OrderItem
-  customAttributes      Json?
+  billingAddress        Json?    // Rechnungsadresse
+  shippingAddress       Json?    // Lieferadresse
+  orderItems            Json?    // Array von SalesOrderItem
+  payments              Json?    // Array von Zahlungen
+  projectMembers        Json?    // Array von Projektmitgliedern
+  statusHistory         Json?    // Status-Historie
+  customAttributes      Json?    // Custom Attributes
   
   // Synchronisation
   weClappLastModified   DateTime @default(now())
   lastSyncAt            DateTime @default(now())
   isActive              Boolean  @default(true)
+  
+  // Relationen
+  customer              WeClappParty? @relation("PartyOrders", fields: [customerId], references: [id], onDelete: SetNull)
+  timeEntries           WeClappTimeEntry[] @relation("OrderTimeEntries")
   
   @@map("weclapp_orders")
 }
 
 model WeClappTimeEntry {
-  id                    String   @id // WeClapp TimeEntry ID
-  taskId                String?
-  userId                String?
-  description           String?
-  durationInSeconds     Int?
-  date                  DateTime?
+  id                    String   @id // WeClapp TimeEntry ID (timeRecord in WeClapp)
+  taskId                String?  // FK → WeClappTask
+  userId                String?  // FK → WeClappUser
+  customerId            String?  // FK → WeClappParty
+  projectId             String?  // Projekt ID
+  salesOrderId          String?  // FK → WeClappOrder
+  articleId             String?  // Artikel-ID
+  ticketId              String?  // Ticket-ID
+  description           String?  // Beschreibung
+  startDate             DateTime? // Startdatum/-zeit
+  durationSeconds       Int?     // Dauer in Sekunden
+  billableDurationSeconds Int?   // Abrechenbare Dauer in Sekunden
+  billable              Boolean  @default(false) // Abrechenbar?
+  billableInvoiceStatus String?  // Abrechnungsstatus
+  hourlyRate            Decimal? // Stundensatz
+  printOnPerformanceRecord Boolean @default(false) // Auf Leistungsnachweis drucken?
   createdDate           DateTime
   lastModifiedDate      DateTime
+  
+  // JSON fields
+  customAttributes      Json?    // Custom Attributes
   
   // Synchronisation
   weClappLastModified   DateTime @default(now())
   lastSyncAt            DateTime @default(now())
   isActive              Boolean  @default(true)
+  
+  // Relationen
+  task                  WeClappTask?  @relation("TaskTimeEntries", fields: [taskId], references: [id], onDelete: SetNull)
+  user                  WeClappUser?  @relation("TimeEntryUser", fields: [userId], references: [id], onDelete: SetNull)
+  customer              WeClappParty? @relation("PartyTimeEntries", fields: [customerId], references: [id], onDelete: SetNull)
+  salesOrder            WeClappOrder? @relation("OrderTimeEntries", fields: [salesOrderId], references: [id], onDelete: SetNull)
   
   @@map("weclapp_time_entries")
 }
@@ -243,4 +379,96 @@ model WeClappWebhookLog {
   receivedAt            DateTime @default(now())
   
   @@map("weclapp_webhook_logs")
+}
+
+// ========================================
+// SYNC & AUDIT LOGGING
+// ========================================
+
+// Sync-Protokoll für alle Synchronisationen
+model SyncLog {
+  id              String   @id @default(cuid())
+  syncType        String   // "pull", "push", "webhook", "manual"
+  entityType      String   // "user", "party", "task", "order", "timeEntry"
+  entityId        String?  // ID der betroffenen Entität
+  action          String   // "created", "updated", "deleted", "skipped", "conflict"
+  direction       String   // "weclapp_to_app", "app_to_weclapp"
+  
+  // Änderungsdetails
+  changesBefore   Json?    // Zustand vor der Änderung
+  changesAfter    Json?    // Zustand nach der Änderung
+  changedFields   String[] // Liste der geänderten Felder
+  
+  // Status
+  success         Boolean  @default(true)
+  errorMessage    String?
+  
+  // Benutzer & Zeitstempel
+  triggeredBy     String?  // User ID oder "system", "webhook"
+  createdAt       DateTime @default(now())
+  
+  @@index([entityType, entityId])
+  @@index([syncType])
+  @@index([createdAt])
+  @@map("sync_logs")
+}
+
+// Audit-Log für alle Datenänderungen (nicht nur Sync)
+model AuditLog {
+  id              String   @id @default(cuid())
+  tableName       String   // "users", "weclapp_tasks", etc.
+  recordId        String   // ID des betroffenen Datensatzes
+  action          String   // "INSERT", "UPDATE", "DELETE"
+  
+  // Änderungsdetails
+  oldValues       Json?    // Werte vor der Änderung
+  newValues       Json?    // Werte nach der Änderung
+  changedFields   String[] // Liste der geänderten Felder
+  
+  // Benutzer & Kontext
+  userId          String?  // App-User der die Änderung gemacht hat
+  userEmail       String?  // E-Mail für bessere Lesbarkeit
+  ipAddress       String?  // IP-Adresse
+  userAgent       String?  // Browser/Client Info
+  
+  // Zeitstempel
+  createdAt       DateTime @default(now())
+  
+  @@index([tableName, recordId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// Sync-Status für Batch-Synchronisationen
+model SyncStatus {
+  id              String   @id @default(cuid())
+  syncType        String   // "initial", "incremental", "manual"
+  status          String   // "running", "completed", "failed"
+  
+  // Statistiken
+  totalRecords    Int      @default(0)
+  successCount    Int      @default(0)
+  failedCount     Int      @default(0)
+  skippedCount    Int      @default(0)
+  
+  // Details pro Entität
+  usersSync       Json?    // { success: 10, failed: 0 }
+  partiesSync     Json?
+  tasksSync       Json?
+  ordersSync      Json?
+  timeEntriesSync Json?
+  
+  // Zeitstempel
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  durationMs      Int?
+  
+  // Fehler
+  errorMessage    String?
+  errorDetails    Json?
+  
+  @@index([status])
+  @@index([startedAt])
+  @@map("sync_status")
 }

@@ -1,7 +1,7 @@
 // Einladungs-Dialog Hook
 // Enthält alle State- und API-Logik
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'react-hot-toast'
 
 export interface WeClappUserInvite {
@@ -36,6 +36,7 @@ export function useInviteDialog({ onSuccess, onClose }: UseInviteDialogProps) {
   // WeClapp State
   const [weClappUsers, setWeClappUsers] = useState<WeClappUserInvite[]>([])
   const [allWeClappUsers, setAllWeClappUsers] = useState<WeClappUserInvite[]>([])
+  const allWeClappUsersRef = useRef<WeClappUserInvite[]>([])
   const [loadingWeClappUsers, setLoadingWeClappUsers] = useState(false)
   const [selectedWeClappUser, setSelectedWeClappUser] = useState<WeClappUserInvite | null>(null)
   const [weClappSearch, setWeClappSearch] = useState('')
@@ -46,6 +47,7 @@ export function useInviteDialog({ onSuccess, onClose }: UseInviteDialogProps) {
     if (!searchText || searchText.trim().length < 1) {
       setWeClappUsers([])
       setAllWeClappUsers([])
+      allWeClappUsersRef.current = []
       setHasSearchedOnce(false)
       return
     }
@@ -58,6 +60,7 @@ export function useInviteDialog({ onSuccess, onClose }: UseInviteDialogProps) {
 
         if (response.ok && data.users) {
           setAllWeClappUsers(data.users)
+          allWeClappUsersRef.current = data.users
 
           const searchLower = searchText.toLowerCase()
           const filtered = data.users.filter((user: WeClappUserInvite) =>
@@ -70,26 +73,28 @@ export function useInviteDialog({ onSuccess, onClose }: UseInviteDialogProps) {
           setHasSearchedOnce(true)
         } else {
           setAllWeClappUsers([])
+          allWeClappUsersRef.current = []
           setWeClappUsers([])
         }
       } catch (error) {
         console.error('WeClapp Suche fehlgeschlagen:', error)
         setAllWeClappUsers([])
+        allWeClappUsersRef.current = []
         setWeClappUsers([])
       } finally {
         setLoadingWeClappUsers(false)
       }
     } else {
-      // Clientseitige Filterung
+      // Clientseitige Filterung mit ref
       const searchLower = searchText.toLowerCase()
-      const filtered = allWeClappUsers.filter((user: WeClappUserInvite) =>
+      const filtered = allWeClappUsersRef.current.filter((user: WeClappUserInvite) =>
         user.firstName.toLowerCase().startsWith(searchLower) ||
         user.lastName.toLowerCase().startsWith(searchLower) ||
         user.email.toLowerCase().startsWith(searchLower)
       )
       setWeClappUsers(filtered)
     }
-  }, [hasSearchedOnce, allWeClappUsers])
+  }, [hasSearchedOnce])
 
   // Automatische Suche bei Eingabe
   useEffect(() => {
@@ -116,6 +121,7 @@ export function useInviteDialog({ onSuccess, onClose }: UseInviteDialogProps) {
     setSelectedWeClappUser(null)
     setWeClappUsers([])
     setAllWeClappUsers([])
+    allWeClappUsersRef.current = []
     setWeClappSearch('')
     setHasSearchedOnce(false)
     setInviteMode('new')

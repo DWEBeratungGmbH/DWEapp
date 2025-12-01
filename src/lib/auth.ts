@@ -8,6 +8,7 @@ declare module 'next-auth' {
     user: {
       id: string
       role: string
+      weClappUserId?: string | null
     } & DefaultSession['user']
   }
   
@@ -20,22 +21,46 @@ export const authOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     AzureADProvider({
-      clientId: process.env.AZURE_AD_CLIENT_ID!,
+      clientId: process.env.AZURE_AD_CLIENT_ID || process.env.NEXT_PUBLIC_AZURE_AD_CLIENT_ID!,
       clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
-      tenantId: process.env.AZURE_AD_TENANT_ID!,
+      tenantId: process.env.AZURE_AD_TENANT_ID || process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID!,
     }),
   ],
   callbacks: {
     session: async ({ session, token }: { session: any; token: any }) => {
       if (session?.user && token?.sub) {
         try {
+          // User mit WeClapp-Verknüpfung laden
           const dbUser = await prisma.user.findUnique({
-            where: { id: token.sub }
+            where: { id: token.sub },
+            include: { weClappUser: true }
           })
           
           if (dbUser) {
+            // Automatische Verknüpfung versuchen, falls noch nicht geschehen
+            if (!dbUser.weClappUserId && dbUser.email) {
+              const weClappUser = await prisma.weClappUser.findFirst({
+                where: { 
+                  email: { 
+                    equals: dbUser.email, 
+                    mode: 'insensitive' 
+                  } 
+                }
+              })
+
+              if (weClappUser) {
+                await prisma.user.update({
+                  where: { id: dbUser.id },
+                  data: { weClappUserId: weClappUser.id }
+                })
+                dbUser.weClappUserId = weClappUser.id
+                console.log(`✅ User ${dbUser.email} automatisch mit WeClapp User verknüpft`)
+              }
+            }
+
             session.user.id = dbUser.id
-            session.user.role = dbUser.role // Rolle aus Datenbank verwenden
+            session.user.role = dbUser.role
+            session.user.weClappUserId = dbUser.weClappUserId
           }
         } catch (error) {
           console.error('Session callback error:', error)

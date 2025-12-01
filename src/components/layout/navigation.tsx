@@ -15,13 +15,18 @@ import {
   Menu, 
   X,
   LogOut,
-  User
+  User,
+  Building,
+  Package
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Projekte", href: "/projects", icon: Briefcase },
   { name: "Aufgaben", href: "/tasks", icon: CheckSquare },
+  { name: "Aufträge", href: "/orders", icon: Package },
+  { name: "Kunden & Lieferanten", href: "/parties", icon: Building },
+  { name: "Benutzer", href: "/users", icon: Users },
   { name: "Zeiterfassung", href: "/time", icon: Clock },
   { name: "Team", href: "/team", icon: Users },
   { name: "Einstellungen", href: "/settings", icon: Settings },

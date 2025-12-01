@@ -53,10 +53,10 @@ export function InviteDialog({ onClose, onSuccess }: InviteDialogProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-[var(--bg-secondary)] rounded-lg shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+      <div className="bg-card rounded-lg shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center gap-2 mb-6">
-          <UserPlus className="h-5 w-5" style={{ color: 'var(--accent)' }} />
+          <UserPlus className="h-5 w-5 text-accent" />
           <h2 className="text-lg font-semibold">Benutzer einladen</h2>
         </div>
 

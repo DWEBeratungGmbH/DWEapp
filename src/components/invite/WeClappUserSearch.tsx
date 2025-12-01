@@ -45,7 +45,7 @@ export function WeClappUserSearch({
       </div>
 
       {/* Suchergebnisse */}
-      <div className="mt-2 max-h-60 overflow-y-auto border border-[var(--border)] rounded-lg">
+      <div className="mt-2 max-h-60 overflow-y-auto border rounded-lg">
         {searchValue.trim().length < 1 ? (
           <EmptyState message="Bitte mindestens 1 Buchstabe eingeben..." />
         ) : loading ? (
@@ -107,17 +107,17 @@ function UserList({
   return (
     <>
       {hasSearchedOnce && (
-        <div className="px-3 py-2 text-xs text-muted border-b border-[var(--border)]">
+        <div className="px-3 py-2 text-xs text-muted border-b">
           {allUsersCount} aktive Benutzer gefunden
         </div>
       )}
       {users.map((user) => (
         <div
           key={user.id}
-          className={`p-3 cursor-pointer transition-colors border-b border-[var(--border)] last:border-b-0 ${
+          className={`p-3 cursor-pointer transition-colors border-b last:border-b-0 ${
             selectedUser?.id === user.id
-              ? 'bg-[var(--accent-muted)]'
-              : 'hover:bg-[var(--bg-tertiary)]'
+              ? 'bg-accent-muted'
+              : 'hover:bg-muted'
           }`}
           onClick={() => onSelectUser(user)}
         >
@@ -130,11 +130,11 @@ function UserList({
               <p className="text-xs text-muted">@{user.username}</p>
             </div>
             <div className="flex items-center gap-2 ml-2">
-              <span className="text-xs px-2 py-1 rounded bg-[var(--accent-muted)]" style={{ color: 'var(--accent)' }}>
+              <span className="text-xs px-2 py-1 rounded bg-accent-muted text-accent">
                 Aktiv
               </span>
               {selectedUser?.id === user.id && (
-                <div className="w-4 h-4 bg-[var(--accent)] rounded-full flex items-center justify-center">
+                <div className="w-4 h-4 bg-accent rounded-full flex items-center justify-center">
                   <div className="w-2 h-2 bg-white rounded-full" />
                 </div>
               )}
@@ -148,10 +148,10 @@ function UserList({
 
 function SelectedUserCard({ user }: { user: WeClappUserInvite }) {
   return (
-    <div className="mt-4 bg-[var(--accent-muted)] border border-[var(--accent)] rounded-lg p-3">
+    <div className="mt-4 bg-accent-muted border border-accent rounded-lg p-3">
       <div className="flex items-center gap-2 mb-2">
-        <Link className="h-4 w-4" style={{ color: 'var(--accent)' }} />
-        <h4 className="font-medium" style={{ color: 'var(--accent)' }}>Ausgewählter WeClapp Benutzer</h4>
+        <Link className="h-4 w-4 text-accent" />
+        <h4 className="font-medium text-accent">Ausgewählter WeClapp Benutzer</h4>
       </div>
       <div className="text-sm">
         <p><strong>Name:</strong> {user.firstName} {user.lastName}</p>

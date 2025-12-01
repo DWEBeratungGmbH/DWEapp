@@ -22,6 +22,36 @@
 
 ---
 
+## 📚 **Dokumentationsübersicht**
+
+### 🗂️ Alle Dokumentationen im Projekt
+
+| Dokument | Zweck | Wichtigste Inhalte |
+|----------|-------|-------------------|
+| **`DWEapp.md`** | 📋 **Hauptdokumentation** (diese Datei) | Architektur, Komponenten, API, Entwicklung |
+| **`DATABASE.md`** | 🗄️ **Datenbank-Dokumentation** | Schema, Sync-Protokoll, Tabellen, Migration |
+| **`CHANGELOG.md`** | 📝 **Änderungsprotokoll** | Versionen, Schema-Änderungen, Rollback-Anleitungen |
+| **`CASCADE.md`** | 🏗️ **Entwicklungsregeln** | Code-Standards, UI-Regeln, Performance |
+| **`.cascade-rules.md`** | 🤖 **AI Assistant Regeln** | Mein Workflow, Checklisten, Best Practices |
+
+### 🎯 **Schnellzugriff**
+
+| Thema | Dokument | Abschnitt |
+|-------|----------|-----------|
+| **Architektur & Ordnerstruktur** | `DWEapp.md` | [Architektur](#architektur) |
+| **Komponenten & UI** | `DWEapp.md` | [Komponenten](#komponenten) |
+| **Datenbank & Sync** | `DATABASE.md` | [WeClapp Synchronisation](#weclapp-synchronisation) |
+| **API-Endpunkte** | `DWEapp.md` | [API Integration](#api-integration) |
+| **Code-Regeln** | `CASCADE.md` | [Code-Architektur](#code-architektur) |
+| **Letzte Änderungen** | `CHANGELOG.md` | [Letzte Version](#latest-version) |
+| **Rollback-Anleitungen** | `CHANGELOG.md` | [Vollständiger Rollback](#vollständiger-rollback) |
+
+**🔔 Merke:** `DWEapp.md` ist immer der **erste Anlaufpunkt** für alle Fragen!
+
+---
+
+---
+
 ## 🎯 Überblick
 
 DWEapp ist eine moderne Web-Anwendung für Projekt- und Aufgabenverwaltung mit Fokus auf:
@@ -238,6 +268,12 @@ DWEapp/
 task.orderItemId → salesOrderItem.id → salesOrder.customerId → party
 ```
 
+**📝 Änderungen & Rollback:**
+Siehe **[`CHANGELOG.md`](./CHANGELOG.md)** für:
+- Detaillierte Änderungshistorie
+- Schema-Änderungen mit SQL-Rollback
+- Code-Änderungen mit Git-Befehlen
+
 ---
 
 ## 🗄️ Datenbank
@@ -255,6 +291,13 @@ task.orderItemId → salesOrderItem.id → salesOrder.customerId → party
 - `users` - Benutzer
 - `orders` - Aufträge
 - `parties` - Stammdaten
+
+**📋 Detaillierte Datenbank-Dokumentation:**
+Siehe **[`DATABASE.md`](./DATABASE.md)** für:
+- Vollständiges Schema mit allen Tabellen
+- WeClapp Sync-Protokoll
+- Logging-Tabellen (sync_logs, audit_logs)
+- Rollback-Anleitungen
 
 ---
 
@@ -473,6 +516,16 @@ npm start
 - **Tailwind CSS:** https://tailwindcss.com/docs
 - **PostgreSQL:** https://www.postgresql.org/docs/
 - **WeClapp API:** https://api.weclapp.com/
+
+### 📚 Dokumentations-Übersicht
+
+| Dokument | Zweck | Link |
+|----------|-------|------|
+| **Hauptdokumentation** | Architektur, Komponenten, API | [DWEapp.md](./DWEapp.md) |
+| **Datenbank & Sync** | Schema, Protokoll, Logging | [DATABASE.md](./DATABASE.md) |
+| **Änderungen & Rollback** | Versionen, Änderungen | [CHANGELOG.md](./CHANGELOG.md) |
+| **Entwicklungsregeln** | Code-Standards, UI-Regeln | [CASCADE.md](./CASCADE.md) |
+| **AI Assistant Regeln** | Mein Workflow, Checklisten | [.cascade-rules.md](./.cascade-rules.md) |
 
 ---
 

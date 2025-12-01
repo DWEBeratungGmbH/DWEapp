@@ -1,4 +1,8 @@
 // Task-Typen für die gesamte App
+import type { WeClappUser } from './user'
+import type { WeClappParty } from './party'
+import type { WeClappTimeEntry } from './time-entry'
+import type { WeClappOrder } from './order'
 
 export interface TaskAssignee {
   id: string
@@ -16,15 +20,26 @@ export interface Task {
   identifier?: string
   taskStatus: TaskStatus
   taskPriority: TaskPriority
+  taskVisibilityType?: string
   dateFrom?: number
   dateTo?: number
   plannedEffort?: number
+  positionNumber?: number
   assignees: TaskAssignee[]
   watchers: { id: string }[]
   creatorUserId?: string
   parentTaskId?: string
+  previousTaskId?: string
   orderItemId?: string
   customerId?: string
+  articleId?: string
+  ticketId?: string
+  calendarEventId?: string
+  userOfLastStatusChangeId?: string
+  allowOverBooking?: boolean
+  allowTimeBooking?: boolean
+  billableStatus?: boolean
+  invoicingStatus?: string
   createdDate?: number
   lastModifiedDate?: number
   // App-spezifisch
@@ -33,6 +48,13 @@ export interface Task {
   canEdit?: boolean
   canDelete?: boolean
   subTasks?: Task[]
+  // Relations
+  creator?: WeClappUser
+  customer?: WeClappParty
+  parentTask?: Task
+  previousTask?: Task
+  order?: WeClappOrder
+  timeEntries?: WeClappTimeEntry[]
 }
 
 export type TaskStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'DEFERRED' | 'WAITING_ON_OTHERS'
@@ -46,11 +68,3 @@ export interface TaskStats {
   highPriority: number
 }
 
-export interface WeClappUser {
-  id: string
-  firstName: string
-  lastName: string
-  fullName: string
-  email: string
-  active: boolean
-}

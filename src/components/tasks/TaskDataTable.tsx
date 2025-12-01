@@ -18,6 +18,7 @@ export interface TaskTableFilters {
   orderNumber: string
   dueDateFrom: string
   dueDateTo: string
+  customerId?: string
 }
 
 interface TaskDataTableProps {

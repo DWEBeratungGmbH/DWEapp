@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/prisma'
 
 // GET - Alle Rollen mit Berechtigungen und Daten-Scope laden
 export async function GET() {
@@ -14,39 +12,35 @@ export async function GET() {
       return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 })
     }
 
-    // Prüfen ob Benutzer Admin ist
-    const currentUser = await prisma.$queryRaw`SELECT * FROM users WHERE email = ${session.user.email}` as any[]
+    // Prüfen ob Benutzer Admin ist (über ID, sicherer als Email)
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id }
+    })
 
-    if (!currentUser || currentUser.length === 0 || currentUser[0].role !== 'ADMIN') {
+    if (!currentUser || currentUser.role !== 'ADMIN') {
+      console.log(`User ${session.user.email} (ID: ${session.user.id}) tried to access roles but has role ${currentUser?.role}`)
       return NextResponse.json({ error: 'Nur Administratoren können Rollen einsehen' }, { status: 403 })
     }
 
-    // Rollen laden
-    const roles = await prisma.$queryRaw`SELECT * FROM roles ORDER BY "createdAt" ASC` as any[]
-
-    // Berechtigungen laden
-    const permissions = await prisma.$queryRaw`
-      SELECT rp.*, r."roleId" 
-      FROM role_permissions rp 
-      JOIN roles r ON rp."roleId" = r.id
-    ` as any[]
-
-    // DataScopes laden
-    const dataScopes = await prisma.$queryRaw`SELECT * FROM role_data_scopes` as any[]
+    // Rollen laden mit Prisma
+    const roles = await prisma.role.findMany({
+      orderBy: { createdAt: 'asc' },
+      include: {
+        permissions: true,
+        dataScopes: true
+      }
+    })
 
     // Daten zusammenführen
     const formattedRoles = roles.map((role: any) => {
-      const rolePermissions = permissions.filter((p: any) => p.roleId === role.id)
-      const roleDataScopes = dataScopes.filter((ds: any) => ds.roleId === role.id)
-
       return {
         id: role.id,
         roleId: role.roleId,
         roleName: role.roleName,
         description: role.description,
         isSystem: role.isSystem,
-        permissions: rolePermissions.map((p: any) => p.permissionId),
-        dataScope: roleDataScopes.reduce((acc: any, ds: any) => {
+        permissions: role.permissions.map((p: any) => p.permissionId),
+        dataScope: role.dataScopes.reduce((acc: any, ds: any) => {
           acc[ds.dataType] = ds.scope
           return acc
         }, {} as Record<string, string>)
@@ -69,9 +63,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 })
     }
 
-    const currentUser = await prisma.$queryRaw`SELECT * FROM users WHERE email = ${session.user.email}` as any[]
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id }
+    })
 
-    if (!currentUser || currentUser.length === 0 || currentUser[0].role !== 'ADMIN') {
+    if (!currentUser || currentUser.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Nur Administratoren können Rollen erstellen' }, { status: 403 })
     }
 
@@ -82,56 +78,63 @@ export async function POST(request: NextRequest) {
     }
 
     // Prüfen ob roleId bereits existiert
-    const existingRole = await prisma.$queryRaw`SELECT * FROM roles WHERE "roleId" = ${roleId}` as any[]
+    const existingRole = await prisma.role.findUnique({
+      where: { roleId }
+    })
 
-    if (existingRole.length > 0) {
+    if (existingRole) {
       return NextResponse.json({ error: 'Diese Rollen-ID existiert bereits' }, { status: 400 })
     }
 
-    // Rolle erstellen
-    const result = await prisma.$queryRaw`
-      INSERT INTO roles (id, "roleId", "roleName", description, "isSystem", "createdAt", "updatedAt")
-      VALUES (gen_random_uuid(), ${roleId}, ${roleName}, ${description || null}, false, NOW(), NOW())
-      RETURNING *
-    ` as any[]
+    // Rolle erstellen mit Transaktion für atomare Operation
+    const createdRole = await prisma.$transaction(async (tx: any) => {
+      // 1. Rolle erstellen
+      const role = await tx.role.create({
+        data: {
+          roleId,
+          roleName,
+          description,
+          isSystem: false
+        }
+      })
 
-    const createdRole = result[0]
-
-    // Berechtigungen erstellen
-    if (permissions && permissions.length > 0) {
-      const permissionValues = permissions.map((permissionId: string) => 
-        `(gen_random_uuid(), ${createdRole.id}, ${permissionId}, NOW())`
-      ).join(', ')
-      
-      await prisma.$queryRaw`
-        INSERT INTO role_permissions (id, "roleId", "permissionId", "createdAt")
-        VALUES ${permissionValues}
-      `
-    }
-
-    // DataScopes erstellen
-    if (dataScope) {
-      const scopeEntries = Object.entries(dataScope).filter(([_, scope]) => scope)
-      if (scopeEntries.length > 0) {
-        const scopeValues = scopeEntries.map(([dataType, scope]) => 
-          `(gen_random_uuid(), ${createdRole.id}, ${dataType}, ${scope}, NOW(), NOW())`
-        ).join(', ')
-        
-        await prisma.$queryRaw`
-          INSERT INTO role_data_scopes (id, "roleId", "dataType", scope, "createdAt", "updatedAt")
-          VALUES ${scopeValues}
-        `
+      // 2. Permissions erstellen
+      if (permissions && permissions.length > 0) {
+        await tx.rolePermission.createMany({
+          data: permissions.map((permissionId: string) => ({
+            roleId: role.id,
+            permissionId
+          }))
+        })
       }
+
+      // 3. DataScopes erstellen
+      if (dataScope) {
+        const scopeEntries = Object.entries(dataScope).filter(([_, scope]) => scope)
+        if (scopeEntries.length > 0) {
+          await tx.roleDataScope.createMany({
+            data: scopeEntries.map(([dataType, scope]) => ({
+              roleId: role.id,
+              dataType,
+              scope: scope as string
+            }))
+          })
+        }
+      }
+      
+      // 4. Rolle mit Relationen zurückgeben
+      return await tx.role.findUnique({
+        where: { id: role.id },
+        include: {
+          permissions: true,
+          dataScopes: true
+        }
+      })
+    })
+    
+    if (!createdRole) {
+        throw new Error('Failed to create role')
     }
-
-    // Rolle mit allen Daten neu laden
-    const rolePermissions = await prisma.$queryRaw`
-      SELECT "permissionId" FROM role_permissions WHERE "roleId" = ${createdRole.id}
-    ` as any[]
-
-    const roleDataScopes = await prisma.$queryRaw`
-      SELECT * FROM role_data_scopes WHERE "roleId" = ${createdRole.id}
-    ` as any[]
 
     // Formatieren für Frontend
     const formattedRole = {
@@ -140,8 +143,8 @@ export async function POST(request: NextRequest) {
       roleName: createdRole.roleName,
       description: createdRole.description,
       isSystem: createdRole.isSystem,
-      permissions: rolePermissions.map((p: any) => p.permissionId),
-      dataScope: roleDataScopes.reduce((acc: any, ds: any) => {
+      permissions: createdRole.permissions.map((p: any) => p.permissionId),
+      dataScope: createdRole.dataScopes.reduce((acc: any, ds: any) => {
         acc[ds.dataType] = ds.scope
         return acc
       }, {} as Record<string, string>)
