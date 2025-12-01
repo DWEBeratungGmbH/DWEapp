@@ -4,6 +4,10 @@ import { useSession, signIn } from 'next-auth/react'
 import { useEffect, useState, Suspense } from 'react'
 import { Loader2, ShieldCheck, AlertCircle } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+
+const APP_VERSION = 'v2.2'
+const APP_BUILD_DATE = '01.12.2025'
 
 function HomeContent() {
   const { data: session, status } = useSession()
@@ -45,7 +49,7 @@ function HomeContent() {
     <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
       <div className="card max-w-md w-full text-center">
         <h1 className="text-2xl font-bold mb-2">
-          WeClapp Manager
+          DWE App
         </h1>
         <p className="text-secondary mb-8">
           Bitte melden Sie sich mit Ihrem Microsoft-Konto an
@@ -59,14 +63,19 @@ function HomeContent() {
           </div>
         )}
 
-        <button
+        <Button
           onClick={handleMicrosoftSignIn}
-          className="btn btn-primary w-full"
+          className="w-full"
           disabled={isRetrying}
         >
-          <ShieldCheck className="h-4 w-4" />
+          <ShieldCheck className="h-4 w-4 mr-2" />
           {isRetrying ? 'Wird vorbereitet...' : 'Mit Microsoft anmelden'}
-        </button>
+        </Button>
+
+        <div className="mt-8 text-xs text-secondary">
+          <p>DWE App {APP_VERSION}</p>
+          <p>Build: {APP_BUILD_DATE}</p>
+        </div>
       </div>
     </div>
   )
