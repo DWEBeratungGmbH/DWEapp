@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
+import type { WeClappUser } from '@/types'
+
+type TaskUserOption = Pick<WeClappUser, 'id' | 'firstName' | 'lastName' | 'fullName' | 'email' | 'status' | 'isActive'>
 
 const prisma = new PrismaClient()
 
@@ -298,16 +301,21 @@ export async function GET(request: NextRequest) {
     const weClappUsers = await fetchWeClappUsers()
     
     // Benutzer-Map für schnellen Lookup (alle IDs als String!)
-    const userMap = new Map()
+    const userMap: Map<string, TaskUserOption> = new Map()
     users.forEach(u => {
+      if (!u.weClappUserId) return
       const id = String(u.weClappUserId)
+      const firstName = u.firstName ?? ''
+      const lastName = u.lastName ?? ''
+      const fullName = `${firstName} ${lastName}`.trim()
       userMap.set(id, {
-        id: id,
-        firstName: u.firstName,
-        lastName: u.lastName,
-        fullName: `${u.firstName} ${u.lastName}`.trim(),
-        email: u.email,
-        active: true
+        id,
+        firstName,
+        lastName,
+        fullName,
+        email: u.email ?? '',
+        status: 'ACTIVE',
+        isActive: true
       })
     })
     
@@ -321,19 +329,23 @@ export async function GET(request: NextRequest) {
           lastName: wu.lastName || '',
           fullName: `${wu.firstName || ''} ${wu.lastName || ''}`.trim() || wu.username || id,
           email: wu.email || '',
-          active: wu.active !== false
+          status: wu.status || 'ACTIVE',
+          isActive: wu.active !== false
         })
       } else {
         // Existierenden Benutzer mit WeClapp Daten aktualisieren
         const existing = userMap.get(id)
-        userMap.set(id, {
+        if (!existing) return
+        const updated: TaskUserOption = {
           ...existing,
           firstName: wu.firstName || existing.firstName,
           lastName: wu.lastName || existing.lastName,
-          fullName: `${wu.firstName || existing.firstName} ${wu.lastName || existing.lastName}`.trim() || existing.fullName,
+          fullName: `${wu.firstName || existing.firstName || ''} ${wu.lastName || existing.lastName || ''}`.trim() || existing.fullName,
           email: wu.email || existing.email,
-          active: wu.active !== false
-        })
+          status: wu.status || existing.status || 'ACTIVE',
+          isActive: wu.active !== false
+        }
+        userMap.set(id, updated)
       }
     })
     
