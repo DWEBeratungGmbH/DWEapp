@@ -34,6 +34,9 @@ export * from './order'
 export * from './party'
 export * from './time-entry'
 
+// ClockIn types (re-export from clockin lib)
+export type { ClockInTimeEntry as ClockInEntry, ClockInUser, ClockInProject } from '@/lib/clockin'
+
 // Re-export WeClapp types for compatibility
 import type { Task } from './task'
 export type WeClappTask = Task

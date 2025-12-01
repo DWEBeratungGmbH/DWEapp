@@ -165,7 +165,7 @@ export function getChangedFields(oldObj: any, newObj: any): string[] {
   const changedFields: string[] = []
   const allKeys = new Set([...Object.keys(oldObj), ...Object.keys(newObj)])
   
-  for (const key of allKeys) {
+  for (const key of Array.from(allKeys)) {
     const oldVal = JSON.stringify(oldObj[key])
     const newVal = JSON.stringify(newObj[key])
     if (oldVal !== newVal) {

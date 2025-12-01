@@ -52,8 +52,8 @@ export async function pushTaskToWeClapp(localTaskId: string): Promise<SyncResult
       const weClappTask = await api.updateTask(localTask.id, {
         subject: localTask.subject || undefined,
         description: localTask.description || undefined,
-        taskStatus: localTask.taskStatus,
-        taskPriority: localTask.taskPriority,
+        taskStatus: localTask.taskStatus as 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'DEFERRED' | 'WAITING_ON_OTHERS',
+        taskPriority: localTask.taskPriority as 'HIGH' | 'MEDIUM' | 'LOW',
         dateFrom: localTask.dateFrom?.getTime(),
         dateTo: localTask.dateTo?.getTime(),
         plannedEffort: localTask.plannedEffort || undefined,
@@ -76,8 +76,8 @@ export async function pushTaskToWeClapp(localTaskId: string): Promise<SyncResult
       const weClappTask = await api.createTask({
         subject: localTask.subject || 'Neue Aufgabe',
         description: localTask.description || undefined,
-        taskStatus: localTask.taskStatus,
-        taskPriority: localTask.taskPriority,
+        taskStatus: localTask.taskStatus as 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'DEFERRED' | 'WAITING_ON_OTHERS',
+        taskPriority: localTask.taskPriority as 'HIGH' | 'MEDIUM' | 'LOW',
         dateFrom: localTask.dateFrom?.getTime(),
         dateTo: localTask.dateTo?.getTime(),
         plannedEffort: localTask.plannedEffort || undefined,
