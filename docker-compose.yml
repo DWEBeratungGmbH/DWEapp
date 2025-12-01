@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   db:
-    image: postgres:17
+    image: postgres:16
     restart: unless-stopped
     environment:
       - POSTGRES_DB=dweapp
@@ -16,7 +16,7 @@ services:
       - "5432:5432"  # Expose port for local development
 
   weclapp-manager:
-    image: weclapp-manager:latest
+    image: ghcr.io/dweberatunggmbh/dweapp:latest
     ports:
       - "3000:3000"
     environment:
@@ -32,6 +32,8 @@ services:
       - NEXT_PUBLIC_CLOCKIN_API_KEY=${CLOCKIN_API_KEY}
       - NEXTAUTH_URL=https://91.98.135.191
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - AZURE_AD_CLIENT_ID=${AZURE_AD_CLIENT_ID}
+      - AZURE_AD_TENANT_ID=${AZURE_AD_TENANT_ID}
       - AZURE_AD_CLIENT_SECRET=${AZURE_AD_CLIENT_SECRET}
       - AZURE_AD_CLIENT_SECRET_ID=${AZURE_AD_CLIENT_SECRET_ID}
     restart: unless-stopped
