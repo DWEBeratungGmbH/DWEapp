@@ -12,8 +12,8 @@ services:
       - postgres-data:/var/lib/postgresql/data
     networks:
       - app-network
-    ports:
-      - "5432:5432"  # Expose port for local development
+    # ports:
+    #   - "127.0.0.1:5432:5432"  # Expose port ONLY to localhost - CLOSED FOR PRODUCTION SECURITY
 
   weclapp-manager:
     image: ghcr.io/dweberatunggmbh/dweapp:latest
