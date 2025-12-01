@@ -8,14 +8,19 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { success: false, error: 'Nicht authentifiziert' },
         { status: 401 }
       )
     }
 
-    const weClappUserId = session.user.weClappUserId
+    // Load weClappUserId from DB (not stored in session)
+    const dbUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { weClappUserId: true }
+    })
+    const weClappUserId = dbUser?.weClappUserId
     
     if (!weClappUserId) {
       return NextResponse.json({

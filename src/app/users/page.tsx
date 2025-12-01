@@ -148,11 +148,6 @@ export default function UsersPage() {
               <span className="font-bold">Du bist: </span>
               {session?.user?.name || session?.user?.email} 
               <span className="ml-2 font-bold text-accent">[{session?.user?.role || 'Keine Rolle'}]</span>
-              {session?.user?.weClappUserId ? (
-                <span className="ml-2 text-accent">✓ Verknüpft</span>
-              ) : (
-                <span className="ml-2 text-error">✕ Nicht verknüpft</span>
-              )}
             </div>
 
             <Button

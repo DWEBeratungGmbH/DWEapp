@@ -310,9 +310,7 @@ export default function MyTasksPage() {
           <div>
             <h1 className="text-2xl font-bold">Meine Aufgaben</h1>
             <p className="text-secondary">
-              {session?.user?.weClappUserId 
-                ? `${stats.total} ${showAll ? 'Aufgaben gesamt' : 'Aufgaben zugewiesen'}`
-                : 'Kein WeClapp-Benutzer verknüpft'}
+              {`${stats.total} ${showAll ? 'Aufgaben gesamt' : 'Aufgaben zugewiesen'}`}
             </p>
           </div>
           <div className="flex items-center gap-4">

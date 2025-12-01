@@ -404,6 +404,47 @@ npm start
 
 ## 📚 Versionen
 
+### v2.2 (01.12.2025) - **Auth Stabilisierung + Audit-System**
+
+**Neu:**
+- **Auth-System refactored** - Stabiler Login mit Microsoft Azure AD
+- **JWT-basierte Sessions** - User-Daten im Token, keine DB-Abfrage pro Request
+- **Type-Deklarationen** - auth.d.ts auf next-auth Types umgestellt
+- **WeClapp getrennt** - Login = User-Tabelle, WeClapp nur fuer Daten-Verknuepfung
+- **Login-Protokollierung** - Wer hat sich wann eingeloggt
+- **Aktivitaets-Tracking** - Wer ist gerade online
+- **Aenderungs-Logging** - Was wurde wann von wem geaendert
+
+**Audit-System:**
+| Feature | Beschreibung |
+|---------|--------------|
+| `LoginLog` | Login/Logout Ereignisse mit IP, Browser |
+| `AuditLog` | Datenaenderungen mit vorher/nachher |
+| `lastLoginAt` | Letzter Login-Zeitpunkt pro User |
+| `lastActiveAt` | Letzte Aktivitaet pro User |
+| `loginCount` | Anzahl erfolgreicher Logins |
+
+**Auth-Architektur:**
+```
+Microsoft Login --> User-Tabelle (Login-Daten)
+                         |
+                         v (optional, manuell)
+                    WeClappUser-Tabelle (nur Referenz)
+```
+
+**Technische Aenderungen:**
+- `src/lib/auth.ts` - Session-Callback + Login-Events
+- `src/lib/audit.ts` - Audit-Helper-Funktionen (NEU)
+- `src/types/auth.d.ts` - next-auth Type-Deklarationen
+- `prisma/schema.prisma` - LoginLog + User-Aktivitaets-Felder
+- `tsconfig.json` - Scripts vom Build ausgeschlossen
+
+**Migration erforderlich:**
+```bash
+npx prisma migrate dev --name add_audit_system
+npx prisma generate
+```
+
 ### v2.1 (30.11.2025) - **CASCADE Refactoring**
 
 **Neu:**

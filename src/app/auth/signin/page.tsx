@@ -4,6 +4,11 @@ import { signIn, useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, Suspense } from 'react'
 import { Loader2, ShieldCheck } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+
+// App Version - hier zentral definiert
+const APP_VERSION = 'v2.2'
+const APP_BUILD_DATE = '01.12.2025'
 
 function SignInContent() {
   const [isLoading, setIsLoading] = useState(false)
@@ -58,18 +63,25 @@ function SignInContent() {
           </div>
         )}
 
-        <button
+        <Button
           onClick={handleMicrosoftSignIn}
           disabled={isLoading}
-          className="btn btn-primary w-full"
+          className="w-full"
+          size="lg"
         >
           {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
           ) : (
-            <ShieldCheck className="h-4 w-4" />
+            <ShieldCheck className="h-4 w-4 mr-2" />
           )}
           Mit Microsoft anmelden
-        </button>
+        </Button>
+      </div>
+      
+      {/* Version Footer */}
+      <div className="mt-8 text-center text-xs text-[var(--muted)]">
+        <p>DWE App {APP_VERSION}</p>
+        <p>Build: {APP_BUILD_DATE}</p>
       </div>
     </div>
   )

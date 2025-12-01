@@ -168,9 +168,7 @@ export default function TimeTrackingPage() {
           <div>
             <h1 className="text-2xl font-bold">Meine Zeitbuchungen</h1>
             <p className="text-secondary">
-              {session?.user?.weClappUserId 
-                ? `${stats.total} Einträge`
-                : 'Kein WeClapp-Benutzer verknüpft'}
+              {`${stats.total} Einträge`}
             </p>
           </div>
           <Button onClick={refetch} disabled={loading} variant="secondary">

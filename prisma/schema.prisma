@@ -12,7 +12,7 @@ model User {
   id            String    @id @default(cuid())
   email         String    @unique
   emailVerified Boolean?  @default(false)
-  name          String?   // Legacy - für Kompatibilität
+  name          String?   // Legacy - fuer Kompatibilitaet
   firstName     String?   // Vorname
   lastName      String?   // Nachname
   image         String?
@@ -22,15 +22,21 @@ model User {
   // Custom fields
   role          String    @default("USER")
   department    String?
-  weClappUserId String?   @unique // Optional: Verknüpfung zu WeClapp (1:1)
+  weClappUserId String?   @unique // Optional: Verknuepfung zu WeClapp (1:1)
   isActive      Boolean   @default(true)
+  
+  // Aktivitaets-Tracking
+  lastLoginAt   DateTime? // Letzter erfolgreicher Login
+  lastActiveAt  DateTime? // Letzte Aktivitaet (API-Aufruf)
+  loginCount    Int       @default(0) // Anzahl erfolgreicher Logins
   
   // Auth-Relationen
   accounts      Account[]
   sessions      Session[]
   invitations   Invitation[]
+  loginLogs     LoginLog[]
   
-  // WeClapp-Verknüpfung (optional, 1:1)
+  // WeClapp-Verknuepfung (optional, 1:1)
   // Nicht jeder App-User hat einen WeClapp-Account
   weClappUser   WeClappUser? @relation("AppUserToWeClappUser", fields: [weClappUserId], references: [id], onDelete: SetNull)
   
@@ -413,7 +419,30 @@ model SyncLog {
   @@map("sync_logs")
 }
 
-// Audit-Log für alle Datenänderungen (nicht nur Sync)
+// Login-Log fuer Authentifizierung
+model LoginLog {
+  id          String   @id @default(cuid())
+  userId      String?  // Null bei fehlgeschlagenen Logins
+  email       String   // E-Mail des Login-Versuchs
+  action      String   // LOGIN_SUCCESS, LOGIN_FAILED, LOGOUT, SESSION_EXPIRED
+  provider    String?  // azure-ad, credentials, etc.
+  ipAddress   String?  // IP-Adresse
+  userAgent   String?  // Browser/Client Info
+  country     String?  // Land (aus IP)
+  city        String?  // Stadt (aus IP)
+  errorReason String?  // Grund bei Fehlschlag
+  createdAt   DateTime @default(now())
+  
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([userId])
+  @@index([email])
+  @@index([action])
+  @@index([createdAt])
+  @@map("login_logs")
+}
+
+// Audit-Log fuer alle Datenaenderungen (nicht nur Sync)
 model AuditLog {
   id              String   @id @default(cuid())
   tableName       String   // "users", "weclapp_tasks", etc.
