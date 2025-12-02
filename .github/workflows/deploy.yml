@@ -58,11 +58,11 @@ jobs:
             echo "📥 Pulling latest code..."
             git pull origin main
             
-            echo "🔨 Building production container..."
-            docker-compose build --no-cache production
+            echo "🔨 Building DWEapp container..."
+            docker-compose build --no-cache DWEapp
             
-            echo "🚀 Restarting production..."
-            docker-compose up -d --force-recreate production nginx
+            echo "🚀 Restarting DWEapp..."
+            docker-compose up -d --force-recreate DWEapp nginx
             
             echo "🧹 Cleaning old images..."
             docker image prune -f

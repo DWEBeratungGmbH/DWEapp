@@ -439,10 +439,17 @@ Microsoft Login --> User-Tabelle (Login-Daten)
 - `prisma/schema.prisma` - LoginLog + User-Aktivitaets-Felder
 - `tsconfig.json` - Scripts vom Build ausgeschlossen
 
+**Server-Info:**
+- **Pfad:** `/opt/weclapp-manager`
+- **SSH:** `ssh -i ssh-keys/dweapp-laptop root@91.98.135.191`
+- **Docker:** docker-compose mit db, weclapp-manager, nginx
+
 **Migration erforderlich:**
 ```bash
-npx prisma migrate dev --name add_audit_system
-npx prisma generate
+# Auf Server
+cd /opt/weclapp-manager
+docker-compose exec weclapp-manager npx prisma migrate dev --name add_audit_system
+docker-compose exec weclapp-manager npx prisma generate
 ```
 
 ### v2.1 (30.11.2025) - **CASCADE Refactoring**

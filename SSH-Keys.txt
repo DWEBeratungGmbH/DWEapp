@@ -7,7 +7,8 @@
 | Rechner | Key-Datei | Server-User | Status |
 |---------|-----------|-------------|--------|
 | DWE-DESKTOP-SEBI | ssh-keys/dwe-desktop-sebi | root | ✅ Aktiv |
-| (2. Rechner) | ssh-keys/[name] | root | ⏳ Noch nicht angelegt |
+| DWE-LAPTOP | ssh-keys/dweapp-laptop | root | ✅ Aktiv (NEU) |
+| (3. Rechner) | ssh-keys/[name] | root | ⏳ Noch nicht angelegt |
 
 ## Verwendung
 
@@ -18,11 +19,17 @@ ssh -i ssh-keys/dwe-desktop-sebi root@91.98.135.191
 
 ## Keys im Detail
 
-### DWE-DESKTOP-SEBI (dieser Rechner)
+### DWE-DESKTOP-SEBI (Desktop im Büro)
 - Privater Key: `ssh-keys/dwe-desktop-sebi` (NICHT committen!)
 - Public Key: `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA5s9HuzqNBpfxrbM41/Fy3PhGtJeeFzusdCuWQVk0HT DWE-DESKTOP-SEBI`
 - Erstellt: 01.12.2025
 - Hinterlegt in: `/root/.ssh/authorized_keys` auf Server
+
+### DWE-LAPTOP (dieser Laptop - AKTUELL)
+- Privater Key: `ssh-keys/dweapp-laptop` (NICHT committen!)
+- Public Key: `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM0gKi+HD5jA78jycr1fxbUguh4HSJb9GYL8S/Xs1RC7 DWEapp Deploy Key`
+- Erstellt: 01.12.2025
+- Hinterlegt in: Hetzner Cloud Console
 
 ## Hinweise
 - Private Keys liegen im Ordner `ssh-keys/` (in .gitignore)

@@ -6,7 +6,7 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │                         HETZNER SERVER                          │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
-│  │     DB      │    │     DEV     │    │    PROD     │         │
+│  │     DB      │    │  DWEappDev  │    │   DWEapp    │         │
 │  │  PostgreSQL │◄───│  Port 3001  │    │  Port 3000  │         │
 │  │             │◄───│  Hot Reload │    │   Stabil    │         │
 │  └─────────────┘    └──────▲──────┘    └──────▲──────┘         │
@@ -35,10 +35,10 @@
 
 ```bash
 # Auf dem Server (via Windsurf Terminal):
-docker-compose --profile dev up -d dev
+docker-compose --profile dev up -d DWEappDev
 
 # Logs anschauen:
-docker-compose logs -f dev
+docker-compose logs -f DWEappDev
 ```
 
 ### Entwickeln
@@ -50,7 +50,7 @@ docker-compose logs -f dev
 ### Dev-Container stoppen
 
 ```bash
-docker-compose --profile dev down dev
+docker-compose --profile dev stop DWEappDev
 ```
 
 ---
@@ -97,13 +97,13 @@ Repository → Settings → Secrets and variables → Actions:
 docker-compose ps
 
 # Production Logs
-docker-compose logs -f production
+docker-compose logs -f DWEapp
 
 # Dev Logs
-docker-compose logs -f dev
+docker-compose logs -f DWEappDev
 
 # Production manuell neu starten
-docker-compose up -d --force-recreate production
+docker-compose up -d --force-recreate DWEapp
 
 # Alle stoppen
 docker-compose down
@@ -115,8 +115,8 @@ docker-compose down
 
 | Container | Port | Verwendung |
 |-----------|------|------------|
-| dev | 3001 | Entwicklung (Hot Reload) |
-| production | 3000 | Live (via nginx) |
+| DWEappDev | 3001 | Entwicklung (Hot Reload) |
+| DWEapp | 3000 | Live (via nginx) |
 | nginx | 80, 443 | SSL Proxy |
 | db | 5432 | PostgreSQL (intern) |
 
@@ -127,7 +127,7 @@ docker-compose down
 ### Taeglich:
 
 1. Windsurf → SSH → Server verbinden
-2. Dev-Container starten: `docker-compose --profile dev up -d dev`
+2. Dev-Container starten: `docker-compose --profile dev up -d DWEappDev`
 3. Code bearbeiten (Hot Reload auf :3001)
 4. Fertig? → `git push`
 5. GitHub Actions deployed automatisch!
@@ -136,10 +136,10 @@ docker-compose down
 
 ```bash
 # Production Logs pruefen
-docker-compose logs production --tail=50
+docker-compose logs DWEapp --tail=50
 
 # Container neu bauen
-docker-compose build --no-cache production
+docker-compose build --no-cache DWEapp
 
 # Alles neu starten
 docker-compose down && docker-compose up -d
