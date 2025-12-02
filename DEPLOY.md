@@ -29,6 +29,40 @@ docker-compose logs weclapp-manager --tail=10
 
 ---
 
+## Notfall: Datenbank wiederherstellen
+
+```bash
+# Backup einspielen
+docker exec -i weclapp-manager-db-1 psql -U postgres dweapp < /tmp/backup.sql
+
+# Oder komplett neu:
+docker-compose down
+docker volume rm weclapp-manager_postgres-data
+docker-compose up -d
+docker-compose exec -T weclapp-manager npx prisma db push
+```
+
+---
+
+## Bekannte Probleme
+
+### 502 Bad Gateway nach Azure AD Login
+
+**Symptom:** Login funktioniert, aber Callback gibt 502.
+
+**Ursache:** nginx Buffer zu klein fuer Azure AD Token.
+
+**Loesung:** In `nginx.conf` hinzufuegen:
+```nginx
+proxy_buffer_size 128k;
+proxy_buffers 4 256k;
+proxy_busy_buffers_size 256k;
+```
+
+Dann: `docker-compose restart nginx`
+
+---
+
 ## WICHTIG - Haeufige Fehler vermeiden!
 
 ### 1. Docker Image MUSS neu gebaut werden!
