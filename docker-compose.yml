@@ -20,7 +20,7 @@ services:
   # DEVELOPMENT CONTAINER (Port 3001)
   # Hot Reload - fuer Entwicklung mit Windsurf SSH
   # ===========================================
-  DWEappDev:
+  dweapp-dev:
     build:
       context: .
       dockerfile: Dockerfile.dev
@@ -57,7 +57,7 @@ services:
   # PRODUCTION CONTAINER (Port 3000)
   # Deployed via GitHub Actions CI/CD
   # ===========================================
-  DWEapp:
+  dweapp:
     build: .
     ports:
       - "3000:3000"
@@ -97,7 +97,7 @@ services:
       - /etc/ssl/certs/weclapp-manager.crt:/etc/ssl/certs/weclapp-manager.crt:ro
       - /etc/ssl/private/weclapp-manager.key:/etc/ssl/private/weclapp-manager.key:ro
     depends_on:
-      - DWEapp
+      - dweapp
     restart: unless-stopped
     networks:
       - app-network
