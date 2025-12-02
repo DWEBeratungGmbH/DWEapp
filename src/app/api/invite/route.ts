@@ -172,8 +172,11 @@ export async function POST(request: NextRequest) {
       </div>
     `
 
-    // E-Mail über Microsoft Graph API an den Mitarbeiter senden
-    const emailResponse = await fetch(`https://graph.microsoft.com/v1.0/users/${email}/sendMail`, {
+    // E-Mail über Microsoft Graph API senden
+    // WICHTIG: Senden als eingeloggter User (nicht als Empfaenger!)
+    const senderEmail = session.user.email
+    
+    const emailResponse = await fetch(`https://graph.microsoft.com/v1.0/users/${senderEmail}/sendMail`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -181,7 +184,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         message: {
-          subject: 'Einladung zum WeClapp Manager',
+          subject: 'Einladung zur DWE App',
           body: {
             contentType: 'HTML',
             content: userEmailHtml
@@ -192,8 +195,16 @@ export async function POST(request: NextRequest) {
                 address: email
               }
             }
+          ],
+          ccRecipients: [
+            {
+              emailAddress: {
+                address: 'intern@dwe-beratung.de'
+              }
+            }
           ]
-        }
+        },
+        saveToSentItems: true
       })
     })
 
