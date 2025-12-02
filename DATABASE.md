@@ -1,5 +1,19 @@
 # Datenbank-Regeln DWEapp
 
+## Sicherheit: Zwei DB-User
+
+| User | Passwort | Verwendung |
+|------|----------|------------|
+| `postgres` | postgres123 | Admin - NUR fuer Migrationen |
+| `app_user` | dweapp_secure_2025 | App - eingeschraenkt |
+
+### Geschuetzte Auth-Tabellen (kein DELETE!):
+- `users`, `accounts`, `sessions`, `invitations`, `verifications`
+
+### App-User darf:
+- SELECT, INSERT, UPDATE auf alle Tabellen
+- DELETE nur auf: weclapp_*, sync_*, audit_logs, login_logs
+
 ## KRITISCH: Schema-Aenderungen
 
 ### NIEMALS direkt SQL ausfuehren ohne Backup!
