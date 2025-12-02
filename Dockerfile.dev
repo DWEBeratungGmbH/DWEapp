@@ -1,0 +1,27 @@
+# Development Dockerfile
+# Hot Reload mit npm run dev
+
+FROM node:18-alpine
+
+RUN apk add --no-cache openssl openssl-dev libc6-compat
+
+WORKDIR /app
+
+# Dependencies installieren
+COPY package.json package-lock.json ./
+RUN npm ci --legacy-peer-deps
+
+# Prisma generieren
+COPY prisma ./prisma
+RUN npx prisma generate
+
+# Source wird per Volume gemountet (nicht kopiert!)
+# Dadurch: Hot Reload bei Aenderungen
+
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+
+EXPOSE 3000
+
+# Development Server mit Hot Reload
+CMD ["npm", "run", "dev"]

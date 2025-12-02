@@ -1,62 +1,80 @@
-name: Build & Deploy
+name: CI/CD Deploy
 
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:
+  workflow_dispatch:  # Manuell starten
+
+env:
+  SERVER_IP: 91.98.135.191
 
 jobs:
-  deploy:
+  # =============================================
+  # STEP 1: Build & Test lokal
+  # =============================================
+  build:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-        
-    - name: Setup SSH
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
-        chmod 600 ~/.ssh/deploy_key
-        ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
-        
-    - name: Deploy to Server
-      run: |
-        ssh -i ~/.ssh/deploy_key root@${{ secrets.SERVER_IP }} << 'EOF'
-          cd /opt/weclapp-manager
-          
-          # Stop service
-          systemctl stop weclapp-manager || true
-          
-          # Pull latest changes
-          git pull origin main
-          
-          # Install dependencies with legacy peer deps
-          npm ci --production --legacy-peer-deps
-          
-          # Build application
-          npm run build
-          
-          # Generate Prisma client
-          npx prisma generate
-          
-          # Start service
-          systemctl start weclapp-manager
-          systemctl enable weclapp-manager
-          
-          echo "✅ Deployment completed!"
-        EOF
-        
-    - name: Health Check
-      run: |
-        sleep 15
-        curl -k -f https://${{ secrets.SERVER_IP }} || echo "Warning: Health check failed"
-        
-    - name: Success
-      run: echo "🚀 Deployed to https://${{ secrets.SERVER_IP }}"
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: TypeScript Check
+        run: npx tsc --noEmit
+
+      - name: Build Test
+        run: npm run build
+        env:
+          NEXT_PUBLIC_WECLAPP_API_URL: https://dwe.weclapp.com/webapp/api/v2
+
+  # =============================================
+  # STEP 2: Deploy auf Server (nur wenn Build OK)
+  # =============================================
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Production
+        run: |
+          ssh -i ~/.ssh/deploy_key root@${{ env.SERVER_IP }} << 'DEPLOY'
+            set -e
+            cd /opt/weclapp-manager
+            
+            echo "📥 Pulling latest code..."
+            git pull origin main
+            
+            echo "🔨 Building production container..."
+            docker-compose build --no-cache production
+            
+            echo "🚀 Restarting production..."
+            docker-compose up -d --force-recreate production nginx
+            
+            echo "🧹 Cleaning old images..."
+            docker image prune -f
+            
+            echo "✅ Deployment completed!"
+            docker-compose ps
+          DEPLOY
+
+      - name: Health Check
+        run: |
+          sleep 20
+          curl -k -f https://${{ env.SERVER_IP }} || echo "⚠️ Health check failed"
+
+      - name: Success
+        run: echo "🚀 Deployed to https://${{ env.SERVER_IP }}"
